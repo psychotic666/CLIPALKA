@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Clipalka.Core", "src\Clipalka.Core\Clipalka.Core.csproj", "{49C20F1A-BBE8-43C6-A160-C1886693871B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Clipalka.App", "src\Clipalka.App\Clipalka.App.csproj", "{75DD271C-CB1C-42EA-915E-5CB54FB62FD5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Clipalka.Core.Tests", "tests\Clipalka.Core.Tests\Clipalka.Core.Tests.csproj", "{EC1400F1-A57A-4C66-B16C-36626072C9A5}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{49C20F1A-BBE8-43C6-A160-C1886693871B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{49C20F1A-BBE8-43C6-A160-C1886693871B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{49C20F1A-BBE8-43C6-A160-C1886693871B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{49C20F1A-BBE8-43C6-A160-C1886693871B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{75DD271C-CB1C-42EA-915E-5CB54FB62FD5}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{75DD271C-CB1C-42EA-915E-5CB54FB62FD5}.Debug|Any CPU.Build.0 = Debug|x64
+		{75DD271C-CB1C-42EA-915E-5CB54FB62FD5}.Release|Any CPU.ActiveCfg = Release|x64
+		{75DD271C-CB1C-42EA-915E-5CB54FB62FD5}.Release|Any CPU.Build.0 = Release|x64
+		{EC1400F1-A57A-4C66-B16C-36626072C9A5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EC1400F1-A57A-4C66-B16C-36626072C9A5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EC1400F1-A57A-4C66-B16C-36626072C9A5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EC1400F1-A57A-4C66-B16C-36626072C9A5}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

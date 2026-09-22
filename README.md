@@ -1,0 +1,98 @@
+# CLIPALKA
+
+CLIPALKA — компактное Windows-приложение для записи экрана и сохранения последних
+30 секунд. Оно одновременно пишет изображение выбранного монитора, системный звук
+с выбранного устройства вывода и голос с выбранного микрофона.
+
+![Windows](https://img.shields.io/badge/Windows-10%2F11-6C63FF)
+![.NET](https://img.shields.io/badge/.NET-8-512BD4)
+![License](https://img.shields.io/badge/license-MIT-36D399)
+
+## Что уже есть в MVP
+
+- обычная запись экрана в MP4 (H.264);
+- сохранение последних 30 секунд;
+- системный звук + микрофон в одной записи;
+- выбор монитора, устройства вывода и устройства ввода;
+- поддержка виртуальных Windows-устройств, включая SteelSeries Sonar;
+- 30, 60 или 120 FPS;
+- выбор папки сохранения;
+- mute/unmute микрофона прямо во время записи;
+- глобальные переназначаемые хоткеи, которые можно полностью отключить;
+- сохранение настроек в `%LOCALAPPDATA%\CLIPALKA\settings.json`;
+- аппаратное кодирование, когда оно поддерживается системой.
+
+## Установка
+
+1. Откройте страницу **Releases** этого репозитория.
+2. Скачайте `CLIPALKA-Setup.exe`.
+3. Запустите установщик и затем CLIPALKA из меню «Пуск».
+
+До появления первого опубликованного релиза приложение можно собрать вручную.
+
+## Сборка для разработчика
+
+Требуется Windows 10/11 x64, [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+и Visual C++ 2015–2022 Redistributable x64.
+
+```powershell
+dotnet restore CLIPALKA.sln
+dotnet test CLIPALKA.sln -c Release
+dotnet publish src/Clipalka.App/Clipalka.App.csproj -c Release -r win-x64 --self-contained true -o publish/win-x64
+```
+
+Для сборки установщика установите Inno Setup 6 и откройте
+`installer/CLIPALKA.iss`.
+
+## SteelSeries Sonar и Discord
+
+CLIPALKA использует Windows WASAPI loopback. Это означает, что она записывает весь
+звук, который проходит через выбранное устройство вывода. Если игра и Discord
+направлены в разные виртуальные каналы Sonar, выберите в SteelSeries GG общий
+Stream/Mix endpoint либо направьте нужные приложения в один playback endpoint.
+Микрофон выбирается отдельно, например `SteelSeries Sonar - Microphone`.
+
+## Как работает replay
+
+В фоне пишется временный MP4 с теми же видео- и аудионастройками. По команде файл
+корректно завершается, CLIPALKA сразу запускает новый буфер, а Windows Media Foundation
+обрезает завершённый файл до последних 30 секунд. Поэтому после сохранения replay
+в MVP возможен очень короткий разрыв буфера. Бесшовный сегментированный ring buffer —
+следующий этап после тестирования на реальном Windows-железе.
+
+## Ограничения MVP
+
+- защищённый DRM-контент Windows может не отдавать в loopback;
+- некоторые игры с эксклюзивным полноэкранным режимом или античитом требуют отдельной
+  проверки; права администратора CLIPALKA сама не запрашивает;
+- одновременный захват разных Sonar Game/Chat endpoints как отдельных дорожек пока не
+  реализован — записывается выбранный итоговый output mix;
+- изменение экрана, FPS или аудиоустройства применяется к следующей записи/replay-сессии;
+- сейчас видео содержит одну смешанную аудиодорожку; раздельные дорожки — будущая функция.
+
+Полный сценарий ручной проверки находится в
+[`docs/WINDOWS_TEST_CHECKLIST.md`](docs/WINDOWS_TEST_CHECKLIST.md).
+
+## Архитектура
+
+- `Clipalka.Core` — настройки, хоткеи и безопасные пути;
+- `Clipalka.App` — WPF-интерфейс, Windows-хоткеи, устройства и движок записи;
+- `ScreenRecorderLib` — Windows Graphics Capture, WASAPI и Media Foundation;
+- `Windows.Media.Editing` — обрезка replay без поставки FFmpeg;
+- `Clipalka.Core.Tests` — кроссплатформенные тесты бизнес-логики.
+
+## Публикация релиза
+
+GitHub Actions проверяет проект при каждом push и pull request. Тег вида `v0.1.0`
+дополнительно создаёт self-contained сборку и установщик, затем прикладывает их к
+GitHub Release.
+
+```powershell
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+## Лицензия
+
+MIT. Зависимость ScreenRecorderLib также распространяется по лицензии MIT.
+

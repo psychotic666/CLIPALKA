@@ -1,0 +1,53 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Restore
+        run: dotnet restore CLIPALKA.sln
+      - name: Test
+        run: dotnet test CLIPALKA.sln -c Release --no-restore --collect:"XPlat Code Coverage"
+      - name: Publish Windows x64
+        run: |
+          dotnet restore src/Clipalka.App/Clipalka.App.csproj -r win-x64 -p:Platform=x64
+          dotnet publish src/Clipalka.App/Clipalka.App.csproj -c Release -r win-x64 --self-contained true -p:Platform=x64 --no-restore -o publish/win-x64
+      - name: Download Visual C++ runtime
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          Invoke-WebRequest https://aka.ms/vs/17/release/vc_redist.x64.exe -OutFile artifacts/VC_redist.x64.exe
+      - name: Build installer
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: choco install innosetup --yes --no-progress && iscc installer/CLIPALKA.iss
+      - name: Create portable archive
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: Compress-Archive -Path publish/win-x64/* -DestinationPath artifacts/CLIPALKA-win-x64.zip
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CLIPALKA-win-x64
+          path: publish/win-x64
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/CLIPALKA-Setup.exe
+            artifacts/CLIPALKA-win-x64.zip
