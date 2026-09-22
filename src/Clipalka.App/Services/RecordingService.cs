@@ -22,6 +22,8 @@ public sealed class RecordingService : IAsyncDisposable
     public bool IsRecording => _manualSession is not null;
     public bool IsReplayBuffering => _replaySession is not null;
     public bool IsMicrophoneMuted => _microphoneMuted;
+    public string? ReplayCaptureName => _replaySession?.Target.Name;
+    public bool IsReplayCapturingApplication => _replaySession?.Target.IsApplication == true;
 
     public event EventHandler<string>? StatusChanged;
 
@@ -101,6 +103,46 @@ public sealed class RecordingService : IAsyncDisposable
         }
     }
 
+    public async Task RefreshReplayTargetAsync(AppSettings settings)
+    {
+        await _gate.WaitAsync();
+        try
+        {
+            if (_replaySession is null)
+            {
+                return;
+            }
+
+            var current = _replaySession;
+            var currentIsAlive = _captureTargets.IsTargetAlive(current.Target);
+            var candidate = _captureTargets.Resolve(settings, CapturePurpose.ReplayBuffer);
+            if (!CaptureSelectionPolicy.ShouldReplaceReplayTarget(
+                    current.Target.IsApplication,
+                    currentIsAlive,
+                    candidate.IsApplication))
+            {
+                return;
+            }
+
+            _replaySession = null;
+            await current.StopAsync();
+            current.Dispose();
+            DeleteIfExists(current.OutputPath);
+
+            _replaySession = CreateSession(
+                settings, candidate, CreateReplayTemporaryPath(), _microphoneMuted);
+            _replaySession.Start();
+            ApplyMicrophoneState(_replaySession);
+            StatusChanged?.Invoke(this, candidate.IsApplication
+                ? $"Replay привязан к игре: {candidate.Name}"
+                : $"Replay переключён на монитор: {candidate.Name}");
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     public async Task<string> SaveReplayAsync(AppSettings settings)
     {
         await _gate.WaitAsync();
@@ -117,13 +159,13 @@ public sealed class RecordingService : IAsyncDisposable
             finishedSession.Dispose();
 
             // Restart capture before rendering so the unavoidable gap stays as short as possible.
-            var nextTarget = _captureTargets.Resolve(settings, CapturePurpose.ReplayBuffer);
+            var nextTarget = _captureTargets.ResolveReplayContinuation(settings, finishedSession.Target);
             _replaySession = CreateSession(settings, nextTarget, CreateReplayTemporaryPath(), _microphoneMuted);
             _replaySession.Start();
             ApplyMicrophoneState(_replaySession);
 
             var directory = RecordingPathService.EnsureOutputDirectory(settings.OutputDirectory);
-            var replayName = _captureTargets.GetActiveApplicationName() ?? finishedSession.CaptureName;
+            var replayName = finishedSession.Target.Name;
             var outputPath = RecordingPathService.CreateCapturePath(
                 directory, replayName, true);
             try
@@ -190,7 +232,13 @@ public sealed class RecordingService : IAsyncDisposable
             : new CaptureAudioSource(settings.InputAudioDeviceId);
         if (microphone is not null)
         {
-            microphone.Volume = microphoneMuted ? 0f : 1f;
+            microphone.ForceMono = true;
+            microphone.Volume = microphoneMuted ? 0f : RecordingQualityProfile.MicrophoneVolume;
+        }
+
+        if (outputAudio is not null)
+        {
+            outputAudio.Volume = RecordingQualityProfile.OutputVolume;
         }
 
         var audioOptions = new AudioOptions
@@ -218,13 +266,15 @@ public sealed class RecordingService : IAsyncDisposable
             {
                 Framerate = settings.FramesPerSecond,
                 IsFixedFramerate = true,
+                IsLowLatencyEnabled = false,
+                IsThrottlingDisabled = false,
                 IsHardwareEncodingEnabled = true,
-                Quality = 92,
-                Bitrate = settings.FramesPerSecond >= 120 ? 36_000_000 : 20_000_000,
+                Quality = 100,
+                Bitrate = RecordingQualityProfile.VideoBitrateFor(settings.FramesPerSecond),
                 Encoder = new H264VideoEncoder
                 {
                     EncoderProfile = H264Profile.High,
-                    BitrateMode = H264BitrateControlMode.Quality
+                    BitrateMode = H264BitrateControlMode.UnconstrainedVBR
                 },
                 IsMp4FastStartEnabled = true
             },
@@ -234,7 +284,7 @@ public sealed class RecordingService : IAsyncDisposable
         };
         options.SourceOptions.RecordingSources.Add(target.Source);
 
-        return new RecordingSession(Recorder.CreateRecorder(options), microphone, outputPath, target.Name);
+        return new RecordingSession(Recorder.CreateRecorder(options), microphone, outputPath, target);
     }
 
     private void ApplyMicrophoneState(RecordingSession? session)
@@ -244,7 +294,7 @@ public sealed class RecordingService : IAsyncDisposable
             return;
         }
 
-        session.Microphone.Volume = _microphoneMuted ? 0f : 1f;
+        session.Microphone.Volume = _microphoneMuted ? 0f : RecordingQualityProfile.MicrophoneVolume;
         session.Recorder.GetDynamicOptionsBuilder()
             .SetUpdatedAudioSource(session.Microphone)
             .Apply();
@@ -281,12 +331,12 @@ public sealed class RecordingService : IAsyncDisposable
             Recorder recorder,
             CaptureAudioSource? microphone,
             string outputPath,
-            string captureName)
+            CaptureTarget target)
         {
             Recorder = recorder;
             Microphone = microphone;
             OutputPath = outputPath;
-            CaptureName = captureName;
+            Target = target;
             Recorder.OnRecordingComplete += OnRecordingComplete;
             Recorder.OnRecordingFailed += OnRecordingFailed;
         }
@@ -294,7 +344,7 @@ public sealed class RecordingService : IAsyncDisposable
         public Recorder Recorder { get; }
         public CaptureAudioSource? Microphone { get; }
         public string OutputPath { get; }
-        public string CaptureName { get; }
+        public CaptureTarget Target { get; }
 
         public void Start()
         {

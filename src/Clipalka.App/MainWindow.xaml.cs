@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Clipalka.App.Models;
 using Clipalka.App.Services;
 using Clipalka.Core.Models;
@@ -21,11 +22,13 @@ public partial class MainWindow : Window
     private readonly CaptureTargetService _captureTargets = new();
     private readonly RecordingService _recordingService;
     private readonly TrayNotificationService _trayNotifications;
+    private readonly DispatcherTimer _replayTargetTimer;
     private AppSettings _settings = new();
     private GlobalHotkeyService? _hotkeys;
     private bool _isClosing;
     private bool _exitRequested;
     private bool _backgroundHintShown;
+    private bool _isRefreshingReplayTarget;
 
     public MainWindow()
     {
@@ -38,12 +41,21 @@ public partial class MainWindow : Window
         _trayNotifications.SaveReplayRequested += () =>
             Dispatcher.BeginInvoke(new Action(() => _ = SaveReplayAsync()));
         _trayNotifications.ExitRequested += () => Dispatcher.BeginInvoke(RequestExit);
+        _replayTargetTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(2)
+        };
+        _replayTargetTimer.Tick += ReplayTargetTimer_Tick;
         var settingsPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "CLIPALKA",
             "settings.json");
         _settingsStore = new JsonSettingsStore(settingsPath);
-        _recordingService.StatusChanged += (_, message) => Dispatcher.Invoke(() => SetStatus(message));
+        _recordingService.StatusChanged += (_, message) => Dispatcher.Invoke(() =>
+        {
+            SetStatus(message);
+            UpdateUi();
+        });
     }
 
     private async void Window_Loaded(object sender, RoutedEventArgs e)
@@ -71,6 +83,7 @@ public partial class MainWindow : Window
 
             UpdateUi();
             SetStatus("Готово. Проверьте выбранные устройства перед первой записью.");
+            _replayTargetTimer.Start();
         }
         catch (Exception exception)
         {
@@ -189,11 +202,51 @@ public partial class MainWindow : Window
         _isClosing = true;
         IsEnabled = false;
         SetStatus("Завершаю записи…");
+        _replayTargetTimer.Stop();
         _hotkeys?.Dispose();
         await _recordingService.DisposeAsync();
         _trayNotifications.Dispose();
         Closing -= Window_Closing;
         Close();
+    }
+
+    private void MinimizeButton_Click(object sender, RoutedEventArgs e) =>
+        SystemCommands.MinimizeWindow(this);
+
+    private void MaximizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (WindowState == WindowState.Maximized)
+        {
+            SystemCommands.RestoreWindow(this);
+        }
+        else
+        {
+            SystemCommands.MaximizeWindow(this);
+        }
+    }
+
+    private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
+
+    private async void ReplayTargetTimer_Tick(object? sender, EventArgs e)
+    {
+        if (_isRefreshingReplayTarget || _isClosing || !_recordingService.IsReplayBuffering)
+        {
+            return;
+        }
+
+        _isRefreshingReplayTarget = true;
+        try
+        {
+            await _recordingService.RefreshReplayTargetAsync(_settings);
+        }
+        catch (Exception exception)
+        {
+            SetStatus($"Не удалось обновить источник replay: {exception.Message}");
+        }
+        finally
+        {
+            _isRefreshingReplayTarget = false;
+        }
     }
 
     private void Window_StateChanged(object? sender, EventArgs e)
@@ -304,6 +357,11 @@ public partial class MainWindow : Window
         ReplayStatusText.Text = _recordingService.IsReplayBuffering ? "Replay активен" : "Replay выключен";
         ReplayStatusDot.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
             _recordingService.IsReplayBuffering ? "#36D399" : "#64748B"));
+        ReplaySourceText.Text = !_recordingService.IsReplayBuffering
+            ? "Источник не выбран"
+            : _recordingService.IsReplayCapturingApplication
+                ? $"Игра: {_recordingService.ReplayCaptureName}"
+                : $"Монитор: {_recordingService.ReplayCaptureName}";
         ReplayButton.IsEnabled = _recordingService.IsReplayBuffering;
         RecordHotkeyHint.Text = string.IsNullOrWhiteSpace(_settings.RecordHotkey) ? "Хоткей выключен" : _settings.RecordHotkey.Replace("+", " + ");
         ReplayHotkeyHint.Text = string.IsNullOrWhiteSpace(_settings.ReplayHotkey) ? "Хоткей выключен" : _settings.ReplayHotkey.Replace("+", " + ");

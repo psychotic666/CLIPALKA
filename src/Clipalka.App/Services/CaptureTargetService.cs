@@ -6,7 +6,11 @@ using ScreenRecorderLib;
 
 namespace Clipalka.App.Services;
 
-public sealed record CaptureTarget(RecordingSourceBase Source, string Name, bool IsApplication);
+public sealed record CaptureTarget(
+    RecordingSourceBase Source,
+    string Name,
+    bool IsApplication,
+    nint WindowHandle = default);
 
 public sealed class CaptureTargetService
 {
@@ -23,8 +27,7 @@ public sealed class CaptureTargetService
     {
         var window = nint.Zero;
         var name = string.Empty;
-        var hasForegroundGame = purpose == CapturePurpose.ManualRecording &&
-                                TryGetForegroundGameWindow(out window, out name);
+        var hasForegroundGame = TryGetForegroundGameWindow(out window, out name);
         if (CaptureSelectionPolicy.ShouldCaptureForegroundWindow(
                 purpose, settings.AutoCaptureGame, hasForegroundGame))
         {
@@ -33,7 +36,7 @@ public sealed class CaptureTargetService
                 IsBorderRequired = false,
                 IsCursorCaptureEnabled = true
             };
-            return new CaptureTarget(source, name, true);
+            return new CaptureTarget(source, name, true, window);
         }
 
         var display = string.IsNullOrWhiteSpace(settings.DisplayDeviceName)
@@ -50,6 +53,29 @@ public sealed class CaptureTargetService
         var displayName = Recorder.GetDisplays()
             .FirstOrDefault(candidate => candidate.DeviceName == display.DeviceName)?.FriendlyName;
         return new CaptureTarget(display, string.IsNullOrWhiteSpace(displayName) ? "Экран" : displayName, false);
+    }
+
+    public bool IsTargetAlive(CaptureTarget target) =>
+        !target.IsApplication ||
+        (target.WindowHandle != nint.Zero && IsWindow(target.WindowHandle));
+
+    public CaptureTarget ResolveReplayContinuation(AppSettings settings, CaptureTarget previousTarget)
+    {
+        if (previousTarget.IsApplication && IsTargetAlive(previousTarget))
+        {
+            var source = new WindowRecordingSource(previousTarget.WindowHandle)
+            {
+                IsBorderRequired = false,
+                IsCursorCaptureEnabled = true
+            };
+            return new CaptureTarget(
+                source,
+                previousTarget.Name,
+                true,
+                previousTarget.WindowHandle);
+        }
+
+        return Resolve(settings, CapturePurpose.ReplayBuffer);
     }
 
     public bool IsLikelyGameActive()
@@ -170,6 +196,9 @@ public sealed class CaptureTargetService
 
     [DllImport("user32.dll")]
     private static extern bool IsWindowVisible(nint window);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsWindow(nint window);
 
     [DllImport("user32.dll")]
     private static extern bool GetWindowRect(nint window, out NativeRect rect);
