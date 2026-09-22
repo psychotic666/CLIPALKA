@@ -20,14 +20,24 @@ public partial class MainWindow : Window
     private readonly DeviceCatalogService _deviceCatalog = new();
     private readonly CaptureTargetService _captureTargets = new();
     private readonly RecordingService _recordingService;
+    private readonly TrayNotificationService _trayNotifications;
     private AppSettings _settings = new();
     private GlobalHotkeyService? _hotkeys;
     private bool _isClosing;
+    private bool _exitRequested;
+    private bool _backgroundHintShown;
 
     public MainWindow()
     {
         InitializeComponent();
         _recordingService = new RecordingService(new ReplayClipExporter(), _captureTargets);
+        _trayNotifications = new TrayNotificationService();
+        _trayNotifications.OpenRequested += () => Dispatcher.BeginInvoke(RestoreFromTray);
+        _trayNotifications.ToggleRecordingRequested += () =>
+            Dispatcher.BeginInvoke(new Action(() => _ = ToggleRecordingAsync()));
+        _trayNotifications.SaveReplayRequested += () =>
+            Dispatcher.BeginInvoke(new Action(() => _ = SaveReplayAsync()));
+        _trayNotifications.ExitRequested += () => Dispatcher.BeginInvoke(RequestExit);
         var settingsPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "CLIPALKA",
@@ -75,7 +85,20 @@ public partial class MainWindow : Window
         await RunUiActionAsync(async () =>
         {
             ApplyFormToSettings();
-            await _recordingService.ToggleRecordingAsync(_settings);
+            var wasRecording = _recordingService.IsRecording;
+            var outputPath = await _recordingService.ToggleRecordingAsync(_settings);
+            if (wasRecording)
+            {
+                _trayNotifications.ShowInfo(
+                    "Запись остановлена и сохранена",
+                    string.IsNullOrWhiteSpace(outputPath)
+                        ? "Видео сохранено в выбранную папку."
+                        : Path.GetFileName(outputPath));
+            }
+            else
+            {
+                _trayNotifications.ShowInfo("Запись началась", "CLIPALKA записывает экран и звук.");
+            }
             UpdateUi();
         });
     }
@@ -89,7 +112,12 @@ public partial class MainWindow : Window
             ApplyFormToSettings();
             ReplayButton.IsEnabled = false;
             SetStatus("Сохраняю последние 30 секунд…");
-            await _recordingService.SaveReplayAsync(_settings);
+            var outputPath = await _recordingService.SaveReplayAsync(_settings);
+            _trayNotifications.ShowInfo(
+                "Replay сохранён",
+                string.IsNullOrWhiteSpace(outputPath)
+                    ? "Последние 30 секунд сохранены."
+                    : Path.GetFileName(outputPath));
             UpdateUi();
         });
     }
@@ -145,6 +173,13 @@ public partial class MainWindow : Window
 
     private async void Window_Closing(object? sender, CancelEventArgs e)
     {
+        if (!_exitRequested)
+        {
+            e.Cancel = true;
+            HideToTray();
+            return;
+        }
+
         if (_isClosing)
         {
             return;
@@ -156,7 +191,46 @@ public partial class MainWindow : Window
         SetStatus("Завершаю записи…");
         _hotkeys?.Dispose();
         await _recordingService.DisposeAsync();
+        _trayNotifications.Dispose();
         Closing -= Window_Closing;
+        Close();
+    }
+
+    private void Window_StateChanged(object? sender, EventArgs e)
+    {
+        if (WindowState == WindowState.Minimized)
+        {
+            HideToTray();
+        }
+    }
+
+    private void RestoreFromTray()
+    {
+        ShowInTaskbar = true;
+        Show();
+        WindowState = WindowState.Normal;
+        Activate();
+    }
+
+    private void HideToTray()
+    {
+        Hide();
+        ShowInTaskbar = false;
+        if (_backgroundHintShown)
+        {
+            return;
+        }
+
+        _backgroundHintShown = true;
+        _trayNotifications.ShowInfo(
+            "CLIPALKA работает в фоне",
+            "Откройте приложение двойным кликом по значку в трее.");
+    }
+
+    private void RequestExit()
+    {
+        _exitRequested = true;
+        RestoreFromTray();
         Close();
     }
 
@@ -221,12 +295,12 @@ public partial class MainWindow : Window
 
     private void UpdateUi()
     {
-        RecordButtonTitle.Text = _recordingService.IsRecording ? "■  Остановить запись" : "●  Записывать экран";
+        RecordButtonTitle.Text = _recordingService.IsRecording ? "Остановить запись" : "Начать запись";
         RecordButton.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
-            _recordingService.IsRecording ? "#A82D32" : "#E5484D"));
+            _recordingService.IsRecording ? "#A92238" : "#D92D45"));
         MicrophoneButtonTitle.Text = _recordingService.IsMicrophoneMuted
-            ? "🔇  Микрофон выключен"
-            : "🎙  Микрофон включён";
+            ? "Микрофон выключен"
+            : "Микрофон включён";
         ReplayStatusText.Text = _recordingService.IsReplayBuffering ? "Replay активен" : "Replay выключен";
         ReplayStatusDot.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
             _recordingService.IsReplayBuffering ? "#36D399" : "#64748B"));
@@ -259,7 +333,7 @@ public partial class MainWindow : Window
         MessageBox.Show(this, exception.Message, title, MessageBoxButton.OK, MessageBoxImage.Error);
     }
 
-    private void HotkeyTextBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    private void HotkeyTextBox_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
         e.Handled = true;
         if (sender is not TextBox textBox)

@@ -41,7 +41,7 @@ public sealed class RecordingService : IAsyncDisposable
             }
 
             var directory = RecordingPathService.EnsureOutputDirectory(settings.OutputDirectory);
-            var target = _captureTargets.Resolve(settings);
+            var target = _captureTargets.Resolve(settings, CapturePurpose.ManualRecording);
             var captureName = _captureTargets.GetActiveApplicationName() ?? target.Name;
             var path = RecordingPathService.CreateCapturePath(directory, captureName, false);
             _manualSession = CreateSession(settings, target, path, _microphoneMuted);
@@ -66,7 +66,7 @@ public sealed class RecordingService : IAsyncDisposable
                 return;
             }
 
-            var target = _captureTargets.Resolve(settings);
+            var target = _captureTargets.Resolve(settings, CapturePurpose.ReplayBuffer);
             _replaySession = CreateSession(settings, target, CreateReplayTemporaryPath(), _microphoneMuted);
             _replaySession.Start();
             ApplyMicrophoneState(_replaySession);
@@ -117,7 +117,7 @@ public sealed class RecordingService : IAsyncDisposable
             finishedSession.Dispose();
 
             // Restart capture before rendering so the unavoidable gap stays as short as possible.
-            var nextTarget = _captureTargets.Resolve(settings);
+            var nextTarget = _captureTargets.Resolve(settings, CapturePurpose.ReplayBuffer);
             _replaySession = CreateSession(settings, nextTarget, CreateReplayTemporaryPath(), _microphoneMuted);
             _replaySession.Start();
             ApplyMicrophoneState(_replaySession);

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Clipalka.Core.Models;
+using Clipalka.Core.Services;
 using ScreenRecorderLib;
 
 namespace Clipalka.App.Services;
@@ -13,14 +14,19 @@ public sealed class CaptureTargetService
     {
         "clipalka", "explorer", "searchhost", "shellexperiencehost", "startmenuexperiencehost",
         "textinputhost", "applicationframehost", "systemsettings", "dwm", "lockapp",
-        "chrome", "msedge", "firefox", "opera", "brave", "arc", "discord", "telegram",
+        "chrome", "msedge", "firefox", "opera", "brave", "arc", "discord", "telegram", "spotify",
         "code", "devenv", "windowsterminal", "cmd", "powershell", "pwsh", "notepad",
         "steam", "steamwebhelper", "epicgameslauncher", "battle.net", "upc", "eadesktop"
     };
 
-    public CaptureTarget Resolve(AppSettings settings)
+    public CaptureTarget Resolve(AppSettings settings, CapturePurpose purpose)
     {
-        if (settings.AutoCaptureGame && TryFindGameWindow(out var window, out var name))
+        var window = nint.Zero;
+        var name = string.Empty;
+        var hasForegroundGame = purpose == CapturePurpose.ManualRecording &&
+                                TryGetForegroundGameWindow(out window, out name);
+        if (CaptureSelectionPolicy.ShouldCaptureForegroundWindow(
+                purpose, settings.AutoCaptureGame, hasForegroundGame))
         {
             var source = new WindowRecordingSource(window)
             {
@@ -58,31 +64,15 @@ public sealed class CaptureTargetService
         return string.Equals(name, "CLIPALKA", StringComparison.OrdinalIgnoreCase) ? null : name;
     }
 
-    private static bool TryFindGameWindow(out nint handle, out string name)
+    private static bool TryGetForegroundGameWindow(out nint handle, out string name)
     {
-        handle = nint.Zero;
+        handle = GetForegroundWindow();
         name = string.Empty;
-        var foreground = GetForegroundWindow();
-        var candidates = Recorder.GetWindows()
-            .Where(window => window.Handle != nint.Zero && !window.IsMinmimized() && window.IsValidWindow())
-            .Select(window =>
-            {
-                var isCandidate = IsGameCandidate(window.Handle, out var candidateName, out var coverage);
-                var score = coverage + (window.Handle == foreground ? 10d : 0d);
-                return new { window.Handle, IsCandidate = isCandidate, Name = candidateName, Score = score };
-            })
-            .Where(candidate => candidate.IsCandidate)
-            .OrderByDescending(candidate => candidate.Score)
-            .ToList();
-
-        var best = candidates.FirstOrDefault();
-        if (best is null)
+        if (handle == nint.Zero || !IsGameCandidate(handle, out name, out _))
         {
+            handle = nint.Zero;
             return false;
         }
-
-        handle = best.Handle;
-        name = best.Name;
         return true;
     }
 
