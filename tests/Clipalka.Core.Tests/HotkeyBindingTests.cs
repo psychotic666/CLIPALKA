@@ -40,5 +40,28 @@ public sealed class HotkeyBindingTests
     {
         Assert.False(HotkeyBinding.TryParse(value, out _));
     }
-}
 
+    [Theory]
+    [InlineData("Shift+Z", false)]
+    [InlineData("Z", false)]
+    [InlineData("Ctrl+Shift+Z", true)]
+    [InlineData("Alt+R", true)]
+    [InlineData("F10", true)]
+    public void IsTypingSafe_RejectsCombinationsProducedByNormalTyping(string value, bool expected)
+    {
+        Assert.True(HotkeyBinding.TryParse(value, out var binding));
+        Assert.NotNull(binding);
+        Assert.Equal(expected, binding.IsTypingSafe);
+    }
+
+    [Fact]
+    public void WithTypingProtection_AddsControlToShiftLetter()
+    {
+        Assert.True(HotkeyBinding.TryParse("Shift+Z", out var binding));
+
+        var protectedBinding = binding!.WithTypingProtection();
+
+        Assert.True(protectedBinding.IsTypingSafe);
+        Assert.Equal("Ctrl+Shift+Z", protectedBinding.ToString());
+    }
+}

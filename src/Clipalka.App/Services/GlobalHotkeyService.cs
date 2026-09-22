@@ -10,7 +10,7 @@ public sealed class GlobalHotkeyService : IDisposable
     private const int WmHotkey = 0x0312;
     private readonly nint _windowHandle;
     private readonly HwndSource _source;
-    private readonly Dictionary<int, Action> _actions = new();
+    private readonly Dictionary<int, HotkeyRegistration> _actions = new();
 
     public GlobalHotkeyService(nint windowHandle)
     {
@@ -20,7 +20,7 @@ public sealed class GlobalHotkeyService : IDisposable
         _source.AddHook(WindowProcedure);
     }
 
-    public void Register(int id, HotkeyBinding? binding, Action action)
+    public void Register(int id, HotkeyBinding? binding, Action action, Func<bool>? canExecute = null)
     {
         Unregister(id);
         if (binding is null)
@@ -34,7 +34,7 @@ public sealed class GlobalHotkeyService : IDisposable
                 "Горячая клавиша уже используется другим приложением.");
         }
 
-        _actions[id] = action;
+        _actions[id] = new HotkeyRegistration(action, canExecute);
     }
 
     public void Unregister(int id)
@@ -57,10 +57,13 @@ public sealed class GlobalHotkeyService : IDisposable
 
     private nint WindowProcedure(nint hwnd, int message, nint wParam, nint lParam, ref bool handled)
     {
-        if (message == WmHotkey && _actions.TryGetValue(wParam.ToInt32(), out var action))
+        if (message == WmHotkey && _actions.TryGetValue(wParam.ToInt32(), out var registration))
         {
             handled = true;
-            action();
+            if (registration.CanExecute?.Invoke() != false)
+            {
+                registration.Action();
+            }
         }
 
         return nint.Zero;
@@ -71,5 +74,6 @@ public sealed class GlobalHotkeyService : IDisposable
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool UnregisterHotKey(nint hWnd, int id);
-}
 
+    private sealed record HotkeyRegistration(Action Action, Func<bool>? CanExecute);
+}

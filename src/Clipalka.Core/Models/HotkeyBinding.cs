@@ -13,6 +13,33 @@ public enum HotkeyModifiers : uint
 
 public sealed record HotkeyBinding(HotkeyModifiers Modifiers, int VirtualKey)
 {
+    public bool IsTypingSafe
+    {
+        get
+        {
+            var meaningfulModifiers = Modifiers & ~HotkeyModifiers.NoRepeat;
+            var isTypingKey = VirtualKey is >= 0x30 and <= 0x5A or 0x09 or 0x0D or 0x20;
+            var hasProtectiveModifier = (meaningfulModifiers &
+                (HotkeyModifiers.Control | HotkeyModifiers.Alt | HotkeyModifiers.Windows)) != 0;
+            return !isTypingKey || hasProtectiveModifier;
+        }
+    }
+
+    public HotkeyBinding WithTypingProtection() => IsTypingSafe
+        ? this
+        : this with { Modifiers = Modifiers | HotkeyModifiers.Control };
+
+    public override string ToString()
+    {
+        var parts = new List<string>();
+        if (Modifiers.HasFlag(HotkeyModifiers.Control)) parts.Add("Ctrl");
+        if (Modifiers.HasFlag(HotkeyModifiers.Alt)) parts.Add("Alt");
+        if (Modifiers.HasFlag(HotkeyModifiers.Shift)) parts.Add("Shift");
+        if (Modifiers.HasFlag(HotkeyModifiers.Windows)) parts.Add("Win");
+        parts.Add(FormatVirtualKey(VirtualKey));
+        return string.Join('+', parts);
+    }
+
     public static bool TryParse(string? value, out HotkeyBinding? binding)
     {
         binding = null;
@@ -78,5 +105,26 @@ public sealed record HotkeyBinding(HotkeyModifiers Modifiers, int VirtualKey)
             _ => null
         };
     }
-}
 
+    private static string FormatVirtualKey(int virtualKey)
+    {
+        if (virtualKey is >= 0x30 and <= 0x5A)
+        {
+            return ((char)virtualKey).ToString();
+        }
+
+        if (virtualKey is >= 0x70 and <= 0x87)
+        {
+            return $"F{virtualKey - 0x70 + 1}";
+        }
+
+        return virtualKey switch
+        {
+            0x20 => "Space",
+            0x09 => "Tab",
+            0x0D => "Enter",
+            0x1B => "Escape",
+            _ => $"Key{virtualKey}"
+        };
+    }
+}

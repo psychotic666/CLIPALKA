@@ -8,13 +8,15 @@ public sealed class RecordingService : IAsyncDisposable
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly ReplayClipExporter _replayExporter;
+    private readonly CaptureTargetService _captureTargets;
     private RecordingSession? _manualSession;
     private RecordingSession? _replaySession;
     private bool _microphoneMuted;
 
-    public RecordingService(ReplayClipExporter replayExporter)
+    public RecordingService(ReplayClipExporter replayExporter, CaptureTargetService captureTargets)
     {
         _replayExporter = replayExporter;
+        _captureTargets = captureTargets;
     }
 
     public bool IsRecording => _manualSession is not null;
@@ -39,11 +41,13 @@ public sealed class RecordingService : IAsyncDisposable
             }
 
             var directory = RecordingPathService.EnsureOutputDirectory(settings.OutputDirectory);
-            var path = RecordingPathService.CreateVideoPath(directory, "recording");
-            _manualSession = CreateSession(settings, path, _microphoneMuted);
+            var target = _captureTargets.Resolve(settings);
+            var captureName = _captureTargets.GetActiveApplicationName() ?? target.Name;
+            var path = RecordingPathService.CreateCapturePath(directory, captureName, false);
+            _manualSession = CreateSession(settings, target, path, _microphoneMuted);
             _manualSession.Start();
             ApplyMicrophoneState(_manualSession);
-            StatusChanged?.Invoke(this, "Идёт запись экрана");
+            StatusChanged?.Invoke(this, $"Идёт запись: {target.Name}");
             return null;
         }
         finally
@@ -62,7 +66,8 @@ public sealed class RecordingService : IAsyncDisposable
                 return;
             }
 
-            _replaySession = CreateSession(settings, CreateReplayTemporaryPath(), _microphoneMuted);
+            var target = _captureTargets.Resolve(settings);
+            _replaySession = CreateSession(settings, target, CreateReplayTemporaryPath(), _microphoneMuted);
             _replaySession.Start();
             ApplyMicrophoneState(_replaySession);
             StatusChanged?.Invoke(this, $"Replay-буфер активен: последние {settings.ReplaySeconds} секунд");
@@ -112,12 +117,15 @@ public sealed class RecordingService : IAsyncDisposable
             finishedSession.Dispose();
 
             // Restart capture before rendering so the unavoidable gap stays as short as possible.
-            _replaySession = CreateSession(settings, CreateReplayTemporaryPath(), _microphoneMuted);
+            var nextTarget = _captureTargets.Resolve(settings);
+            _replaySession = CreateSession(settings, nextTarget, CreateReplayTemporaryPath(), _microphoneMuted);
             _replaySession.Start();
             ApplyMicrophoneState(_replaySession);
 
             var directory = RecordingPathService.EnsureOutputDirectory(settings.OutputDirectory);
-            var outputPath = RecordingPathService.CreateVideoPath(directory, $"replay_{settings.ReplaySeconds}s");
+            var replayName = _captureTargets.GetActiveApplicationName() ?? finishedSession.CaptureName;
+            var outputPath = RecordingPathService.CreateCapturePath(
+                directory, replayName, true);
             try
             {
                 await _replayExporter.ExportLastAsync(
@@ -168,21 +176,12 @@ public sealed class RecordingService : IAsyncDisposable
         _gate.Dispose();
     }
 
-    private static RecordingSession CreateSession(AppSettings settings, string outputPath, bool microphoneMuted)
+    private static RecordingSession CreateSession(
+        AppSettings settings,
+        CaptureTarget target,
+        string outputPath,
+        bool microphoneMuted)
     {
-        var display = string.IsNullOrWhiteSpace(settings.DisplayDeviceName)
-            ? DisplayRecordingSource.MainMonitor
-            : new DisplayRecordingSource(settings.DisplayDeviceName);
-
-        if (display is null)
-        {
-            throw new InvalidOperationException("Не найден экран для записи.");
-        }
-
-        display.RecorderApi = RecorderApi.WindowsGraphicsCapture;
-        display.IsBorderRequired = false;
-        display.IsCursorCaptureEnabled = true;
-
         var outputAudio = string.IsNullOrWhiteSpace(settings.OutputAudioDeviceId)
             ? LoopbackAudioSource.Default
             : new LoopbackAudioSource(settings.OutputAudioDeviceId);
@@ -220,16 +219,22 @@ public sealed class RecordingService : IAsyncDisposable
                 Framerate = settings.FramesPerSecond,
                 IsFixedFramerate = true,
                 IsHardwareEncodingEnabled = true,
-                Quality = 80,
+                Quality = 92,
+                Bitrate = settings.FramesPerSecond >= 120 ? 36_000_000 : 20_000_000,
+                Encoder = new H264VideoEncoder
+                {
+                    EncoderProfile = H264Profile.High,
+                    BitrateMode = H264BitrateControlMode.Quality
+                },
                 IsMp4FastStartEnabled = true
             },
             OutputOptions = new OutputOptions { RecorderMode = RecorderMode.Video },
             MouseOptions = new MouseOptions { IsMousePointerEnabled = true },
             LogOptions = new LogOptions { IsLogEnabled = false }
         };
-        options.SourceOptions.RecordingSources.Add(display);
+        options.SourceOptions.RecordingSources.Add(target.Source);
 
-        return new RecordingSession(Recorder.CreateRecorder(options), microphone, outputPath);
+        return new RecordingSession(Recorder.CreateRecorder(options), microphone, outputPath, target.Name);
     }
 
     private void ApplyMicrophoneState(RecordingSession? session)
@@ -272,11 +277,16 @@ public sealed class RecordingService : IAsyncDisposable
         private readonly TaskCompletionSource _stopped = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private bool _started;
 
-        public RecordingSession(Recorder recorder, CaptureAudioSource? microphone, string outputPath)
+        public RecordingSession(
+            Recorder recorder,
+            CaptureAudioSource? microphone,
+            string outputPath,
+            string captureName)
         {
             Recorder = recorder;
             Microphone = microphone;
             OutputPath = outputPath;
+            CaptureName = captureName;
             Recorder.OnRecordingComplete += OnRecordingComplete;
             Recorder.OnRecordingFailed += OnRecordingFailed;
         }
@@ -284,6 +294,7 @@ public sealed class RecordingService : IAsyncDisposable
         public Recorder Recorder { get; }
         public CaptureAudioSource? Microphone { get; }
         public string OutputPath { get; }
+        public string CaptureName { get; }
 
         public void Start()
         {

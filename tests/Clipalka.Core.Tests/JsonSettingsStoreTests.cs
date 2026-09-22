@@ -43,7 +43,7 @@ public sealed class JsonSettingsStoreTests : IDisposable
         var actual = await new JsonSettingsStore(path).LoadAsync();
 
         Assert.Equal(60, actual.FramesPerSecond);
-        Assert.Equal("Shift+Z", actual.ReplayHotkey);
+        Assert.Equal("Ctrl+Shift+Z", actual.ReplayHotkey);
     }
 
     public void Dispose()
@@ -54,4 +54,3 @@ public sealed class JsonSettingsStoreTests : IDisposable
         }
     }
 }
-

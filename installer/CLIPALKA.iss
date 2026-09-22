@@ -1,5 +1,5 @@
 #define MyAppName "CLIPALKA"
-#define MyAppVersion "0.1.0"
+#define MyAppVersion "0.2.0"
 #define MyAppPublisher "CLIPALKA"
 #define MyAppExeName "CLIPALKA.exe"
 
@@ -39,4 +39,3 @@ Name: "desktopicon"; Description: "Создать ярлык на рабочем
 [Run]
 Filename: "{tmp}\VC_redist.x64.exe"; Parameters: "/install /quiet /norestart"; StatusMsg: "Установка компонентов Visual C++…"; Flags: waituntilterminated
 Filename: "{app}\{#MyAppExeName}"; Description: "Запустить {#MyAppName}"; Flags: nowait postinstall skipifsilent
-

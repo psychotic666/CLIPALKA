@@ -1,5 +1,7 @@
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using Clipalka.App.Models;
@@ -16,7 +18,8 @@ public partial class MainWindow : Window
     private const int ReplayHotkeyId = 1002;
     private readonly ISettingsStore _settingsStore;
     private readonly DeviceCatalogService _deviceCatalog = new();
-    private readonly RecordingService _recordingService = new(new ReplayClipExporter());
+    private readonly CaptureTargetService _captureTargets = new();
+    private readonly RecordingService _recordingService;
     private AppSettings _settings = new();
     private GlobalHotkeyService? _hotkeys;
     private bool _isClosing;
@@ -24,6 +27,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        _recordingService = new RecordingService(new ReplayClipExporter(), _captureTargets);
         var settingsPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "CLIPALKA",
@@ -37,6 +41,14 @@ public partial class MainWindow : Window
         try
         {
             _settings = await _settingsStore.LoadAsync();
+            var normalizedRecordHotkey = NormalizeStoredHotkey(_settings.RecordHotkey);
+            var normalizedReplayHotkey = NormalizeStoredHotkey(_settings.ReplayHotkey);
+            if (normalizedRecordHotkey != _settings.RecordHotkey || normalizedReplayHotkey != _settings.ReplayHotkey)
+            {
+                _settings.RecordHotkey = normalizedRecordHotkey;
+                _settings.ReplayHotkey = normalizedReplayHotkey;
+                await _settingsStore.SaveAsync(_settings);
+            }
             LoadDevices();
             PopulateForm();
             _hotkeys = new GlobalHotkeyService(new WindowInteropHelper(this).Handle);
@@ -113,8 +125,12 @@ public partial class MainWindow : Window
             await _settingsStore.SaveAsync(_settings);
             RegisterHotkeys();
 
-            if (_settings.StartReplayBufferWithApp && !_recordingService.IsReplayBuffering)
+            if (_settings.StartReplayBufferWithApp)
             {
+                if (_recordingService.IsReplayBuffering)
+                {
+                    await _recordingService.StopReplayBufferAsync();
+                }
                 await _recordingService.StartReplayBufferAsync(_settings);
             }
             else if (!_settings.StartReplayBufferWithApp && _recordingService.IsReplayBuffering)
@@ -158,6 +174,8 @@ public partial class MainWindow : Window
         RecordHotkeyTextBox.Text = _settings.RecordHotkey;
         ReplayHotkeyTextBox.Text = _settings.ReplayHotkey;
         StartReplayCheckBox.IsChecked = _settings.StartReplayBufferWithApp;
+        AutoGameCheckBox.IsChecked = _settings.AutoCaptureGame;
+        GameOnlyHotkeysCheckBox.IsChecked = _settings.HotkeysOnlyWhileGameActive;
         SelectDevice(DisplayComboBox, _settings.DisplayDeviceName);
         SelectDevice(OutputDeviceComboBox, _settings.OutputAudioDeviceId);
         SelectDevice(InputDeviceComboBox, _settings.InputAudioDeviceId);
@@ -165,15 +183,8 @@ public partial class MainWindow : Window
 
     private void ApplyFormToSettings()
     {
-        if (!HotkeyBinding.TryParse(RecordHotkeyTextBox.Text, out _))
-        {
-            throw new InvalidOperationException("Некорректный хоткей записи. Пример: Ctrl+Shift+R.");
-        }
-
-        if (!HotkeyBinding.TryParse(ReplayHotkeyTextBox.Text, out _))
-        {
-            throw new InvalidOperationException("Некорректный хоткей replay. Пример: Shift+Z.");
-        }
+        ValidateHotkey(RecordHotkeyTextBox.Text, "записи");
+        ValidateHotkey(ReplayHotkeyTextBox.Text, "replay");
 
         _settings.OutputDirectory = RecordingPathService.EnsureOutputDirectory(OutputPathTextBox.Text);
         _settings.FramesPerSecond = int.TryParse(FpsComboBox.SelectedValue?.ToString(), out var fps) ? fps : 60;
@@ -183,6 +194,8 @@ public partial class MainWindow : Window
         _settings.RecordHotkey = RecordHotkeyTextBox.Text.Trim();
         _settings.ReplayHotkey = ReplayHotkeyTextBox.Text.Trim();
         _settings.StartReplayBufferWithApp = StartReplayCheckBox.IsChecked == true;
+        _settings.AutoCaptureGame = AutoGameCheckBox.IsChecked == true;
+        _settings.HotkeysOnlyWhileGameActive = GameOnlyHotkeysCheckBox.IsChecked == true;
     }
 
     private void RegisterHotkeys()
@@ -194,8 +207,16 @@ public partial class MainWindow : Window
 
         HotkeyBinding.TryParse(_settings.RecordHotkey, out var recordBinding);
         HotkeyBinding.TryParse(_settings.ReplayHotkey, out var replayBinding);
-        _hotkeys.Register(RecordHotkeyId, recordBinding, () => _ = ToggleRecordingAsync());
-        _hotkeys.Register(ReplayHotkeyId, replayBinding, () => _ = SaveReplayAsync());
+        _hotkeys.Register(
+            RecordHotkeyId,
+            recordBinding,
+            () => _ = ToggleRecordingAsync(),
+            CanExecuteGlobalHotkey);
+        _hotkeys.Register(
+            ReplayHotkeyId,
+            replayBinding,
+            () => _ = SaveReplayAsync(),
+            CanExecuteGlobalHotkey);
     }
 
     private void UpdateUi()
@@ -236,6 +257,95 @@ public partial class MainWindow : Window
     {
         SetStatus(exception.Message);
         MessageBox.Show(this, exception.Message, title, MessageBoxButton.OK, MessageBoxImage.Error);
+    }
+
+    private void HotkeyTextBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        e.Handled = true;
+        if (sender is not TextBox textBox)
+        {
+            return;
+        }
+
+        var key = e.Key == Key.System ? e.SystemKey : e.Key;
+        if (key is Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt or
+            Key.LeftShift or Key.RightShift or Key.LWin or Key.RWin)
+        {
+            SetStatus("Удерживайте модификаторы и нажмите основную клавишу");
+            return;
+        }
+
+        if (key is Key.Back or Key.Delete or Key.Escape)
+        {
+            textBox.Clear();
+            SetStatus("Хоткей отключён. Сохраните настройки, чтобы применить.");
+            return;
+        }
+
+        var modifiers = HotkeyModifiers.NoRepeat;
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) modifiers |= HotkeyModifiers.Control;
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Alt)) modifiers |= HotkeyModifiers.Alt;
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) modifiers |= HotkeyModifiers.Shift;
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Windows)) modifiers |= HotkeyModifiers.Windows;
+
+        var virtualKey = KeyInterop.VirtualKeyFromKey(key);
+        if (virtualKey <= 0)
+        {
+            SetStatus("Эта клавиша не поддерживается для глобального хоткея");
+            return;
+        }
+
+        var binding = new HotkeyBinding(modifiers, virtualKey);
+        var formattedBinding = binding.ToString();
+        if (!HotkeyBinding.TryParse(formattedBinding, out _))
+        {
+            SetStatus("Эта клавиша пока не поддерживается. Используйте букву, цифру, F1–F24, Space, Tab или Enter.");
+            return;
+        }
+
+        if (!binding.IsTypingSafe)
+        {
+            SetStatus("Добавьте Ctrl, Alt или Win — Shift+буква срабатывает при обычном наборе текста");
+            return;
+        }
+
+        textBox.Text = formattedBinding;
+        SetStatus($"Хоткей выбран: {binding}. Нажмите «Сохранить настройки».");
+    }
+
+    private bool CanExecuteGlobalHotkey()
+    {
+        if (!_settings.HotkeysOnlyWhileGameActive || _captureTargets.IsLikelyGameActive())
+        {
+            return true;
+        }
+
+        SetStatus("Хоткей проигнорирован: активного игрового окна нет");
+        return false;
+    }
+
+    private static void ValidateHotkey(string value, string purpose)
+    {
+        if (!HotkeyBinding.TryParse(value, out var binding))
+        {
+            throw new InvalidOperationException($"Некорректный хоткей {purpose}.");
+        }
+
+        if (binding is not null && !binding.IsTypingSafe)
+        {
+            throw new InvalidOperationException(
+                $"Хоткей {purpose} может срабатывать при печати. Используйте Ctrl, Alt или Win.");
+        }
+    }
+
+    private static string NormalizeStoredHotkey(string value)
+    {
+        if (!HotkeyBinding.TryParse(value, out var binding) || binding is null)
+        {
+            return value;
+        }
+
+        return binding.WithTypingProtection().ToString();
     }
 
     private static void SelectDevice(System.Windows.Controls.ComboBox comboBox, string? id)

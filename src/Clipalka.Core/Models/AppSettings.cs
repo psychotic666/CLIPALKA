@@ -11,7 +11,8 @@ public sealed class AppSettings
     public string? OutputAudioDeviceId { get; set; }
     public string? InputAudioDeviceId { get; set; }
     public string RecordHotkey { get; set; } = "Ctrl+Shift+R";
-    public string ReplayHotkey { get; set; } = "Shift+Z";
+    public string ReplayHotkey { get; set; } = "Ctrl+Shift+Z";
     public bool StartReplayBufferWithApp { get; set; } = true;
+    public bool AutoCaptureGame { get; set; } = true;
+    public bool HotkeysOnlyWhileGameActive { get; set; } = true;
 }
-

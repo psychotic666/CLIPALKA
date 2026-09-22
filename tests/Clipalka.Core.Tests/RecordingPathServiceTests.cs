@@ -25,6 +25,17 @@ public sealed class RecordingPathServiceTests : IDisposable
         Assert.EndsWith($"replay30s_2026-09-22_15-04-05.mp4", result);
     }
 
+    [Fact]
+    public void CreateCapturePath_UsesApplicationNameAndDate()
+    {
+        var timestamp = new DateTimeOffset(2026, 9, 22, 18, 42, 10, TimeSpan.Zero);
+
+        var result = RecordingPathService.CreateCapturePath(
+            _directory, "Counter-Strike 2: Premier", true, timestamp);
+
+        Assert.EndsWith("Counter-Strike 2 Premier Replay - 2026-09-22 18-42-10.mp4", result);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_directory))
@@ -33,4 +44,3 @@ public sealed class RecordingPathServiceTests : IDisposable
         }
     }
 }
-
