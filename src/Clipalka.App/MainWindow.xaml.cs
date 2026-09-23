@@ -227,6 +227,20 @@ public partial class MainWindow : Window
 
     private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
 
+    private void DashboardNavButton_Click(object sender, RoutedEventArgs e) => RecordButton.Focus();
+
+    private void VideoNavButton_Click(object sender, RoutedEventArgs e) => ScrollSettingsTo(VideoSection);
+
+    private void AudioNavButton_Click(object sender, RoutedEventArgs e) => ScrollSettingsTo(AudioSection);
+
+    private void HotkeysNavButton_Click(object sender, RoutedEventArgs e) => ScrollSettingsTo(HotkeysSection);
+
+    private void ScrollSettingsTo(FrameworkElement section)
+    {
+        section.BringIntoView(new Rect(0, 0, section.ActualWidth, 180));
+        section.Focus();
+    }
+
     private async void ReplayTargetTimer_Tick(object? sender, EventArgs e)
     {
         if (_isRefreshingReplayTarget || _isClosing || !_recordingService.IsReplayBuffering)
@@ -354,6 +368,8 @@ public partial class MainWindow : Window
         MicrophoneButtonTitle.Text = _recordingService.IsMicrophoneMuted
             ? "Микрофон выключен"
             : "Микрофон включён";
+        MicrophoneIcon.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
+            _recordingService.IsMicrophoneMuted ? "#F04461" : "#45D483"));
         ReplayStatusText.Text = _recordingService.IsReplayBuffering ? "Replay активен" : "Replay выключен";
         ReplayStatusDot.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
             _recordingService.IsReplayBuffering ? "#36D399" : "#64748B"));
