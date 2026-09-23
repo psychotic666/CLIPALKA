@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Clipalka.Core.Models;
 using Clipalka.Core.Services;
 using ScreenRecorderLib;
@@ -6,7 +7,9 @@ namespace Clipalka.App.Services;
 
 public sealed class RecordingService : IAsyncDisposable
 {
+    private static readonly TimeSpan ReplaySegmentOverlap = TimeSpan.FromMilliseconds(180);
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly Queue<CompletedReplaySegment> _completedReplaySegments = new();
     private readonly ReplayClipExporter _replayExporter;
     private readonly CaptureTargetService _captureTargets;
     private RecordingSession? _manualSession;
@@ -46,7 +49,7 @@ public sealed class RecordingService : IAsyncDisposable
             var target = _captureTargets.Resolve(settings, CapturePurpose.ManualRecording);
             var captureName = _captureTargets.GetActiveApplicationName() ?? target.Name;
             var path = RecordingPathService.CreateCapturePath(directory, captureName, false);
-            _manualSession = CreateSession(settings, target, path, _microphoneMuted);
+            _manualSession = CreateSession(settings, target, path, _microphoneMuted, false);
             _manualSession.Start();
             ApplyMicrophoneState(_manualSession);
             StatusChanged?.Invoke(this, $"Идёт запись: {target.Name}");
@@ -69,7 +72,8 @@ public sealed class RecordingService : IAsyncDisposable
             }
 
             var target = _captureTargets.Resolve(settings, CapturePurpose.ReplayBuffer);
-            _replaySession = CreateSession(settings, target, CreateReplayTemporaryPath(), _microphoneMuted);
+            DeleteReplayTemporaryFiles();
+            _replaySession = CreateSession(settings, target, CreateReplayTemporaryPath(), _microphoneMuted, true);
             _replaySession.Start();
             ApplyMicrophoneState(_replaySession);
             StatusChanged?.Invoke(this, $"Replay-буфер активен: последние {settings.ReplaySeconds} секунд");
@@ -95,6 +99,7 @@ public sealed class RecordingService : IAsyncDisposable
             await session.StopAsync();
             session.Dispose();
             DeleteIfExists(session.OutputPath);
+            ClearCompletedReplaySegments();
             StatusChanged?.Invoke(this, "Replay-буфер выключен");
         }
         finally
@@ -116,26 +121,27 @@ public sealed class RecordingService : IAsyncDisposable
             var current = _replaySession;
             var currentIsAlive = _captureTargets.IsTargetAlive(current.Target);
             var candidate = _captureTargets.Resolve(settings, CapturePurpose.ReplayBuffer);
-            if (!CaptureSelectionPolicy.ShouldReplaceReplayTarget(
+            var shouldReplaceTarget = CaptureSelectionPolicy.ShouldReplaceReplayTarget(
                     current.Target.IsApplication,
                     currentIsAlive,
-                    candidate.IsApplication))
+                    candidate.IsApplication);
+            var segmentLength = TimeSpan.FromSeconds(Math.Max(40, settings.ReplaySeconds + 10));
+            if (!shouldReplaceTarget && DateTimeOffset.UtcNow - current.StartedAtUtc < segmentLength)
             {
+                CleanupExpiredReplaySegments(settings.ReplaySeconds);
                 return;
             }
 
-            _replaySession = null;
-            await current.StopAsync();
-            current.Dispose();
-            DeleteIfExists(current.OutputPath);
-
-            _replaySession = CreateSession(
-                settings, candidate, CreateReplayTemporaryPath(), _microphoneMuted);
-            _replaySession.Start();
-            ApplyMicrophoneState(_replaySession);
-            StatusChanged?.Invoke(this, candidate.IsApplication
-                ? $"Replay привязан к игре: {candidate.Name}"
-                : $"Replay переключён на монитор: {candidate.Name}");
+            var nextTarget = shouldReplaceTarget ? candidate : current.Target;
+            await RotateReplaySessionAsync(settings, nextTarget, keepFinishedSegment: !shouldReplaceTarget);
+            if (shouldReplaceTarget)
+            {
+                ClearCompletedReplaySegments();
+                StatusChanged?.Invoke(this, candidate.IsApplication
+                    ? $"Replay привязан к игре: {candidate.Name}"
+                    : $"Replay переключён на монитор: {candidate.Name}");
+            }
+            CleanupExpiredReplaySegments(settings.ReplaySeconds);
         }
         finally
         {
@@ -153,31 +159,35 @@ public sealed class RecordingService : IAsyncDisposable
                 throw new InvalidOperationException("Сначала включите replay-буфер.");
             }
 
-            var finishedSession = _replaySession;
-            _replaySession = null;
-            await finishedSession.StopAsync();
-            finishedSession.Dispose();
-
-            // Restart capture before rendering so the unavoidable gap stays as short as possible.
-            var nextTarget = _captureTargets.ResolveReplayContinuation(settings, finishedSession.Target);
-            _replaySession = CreateSession(settings, nextTarget, CreateReplayTemporaryPath(), _microphoneMuted);
-            _replaySession.Start();
-            ApplyMicrophoneState(_replaySession);
-
             var directory = RecordingPathService.EnsureOutputDirectory(settings.OutputDirectory);
-            var replayName = finishedSession.Target.Name;
+            var replayName = _replaySession.Target.Name;
             var outputPath = RecordingPathService.CreateCapturePath(
                 directory, replayName, true);
+            var snapshotPath = CreateReplaySnapshotPath();
+            var replaySources = _completedReplaySegments.Select(segment => segment.Path).ToList();
             try
             {
+                await CopyGrowingFileSnapshotAsync(_replaySession.OutputPath, snapshotPath);
+                replaySources.Add(snapshotPath);
                 await _replayExporter.ExportLastAsync(
-                    finishedSession.OutputPath,
+                    replaySources,
+                    outputPath,
+                    TimeSpan.FromSeconds(settings.ReplaySeconds));
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or COMException)
+            {
+                // Some Windows encoders deny shared reads. Fall back to a fast rollover,
+                // preserving the old session as a finalized replay source.
+                await RotateReplaySessionAsync(settings, _replaySession.Target, keepFinishedSegment: true);
+                replaySources = _completedReplaySegments.Select(segment => segment.Path).ToList();
+                await _replayExporter.ExportLastAsync(
+                    replaySources,
                     outputPath,
                     TimeSpan.FromSeconds(settings.ReplaySeconds));
             }
             finally
             {
-                DeleteIfExists(finishedSession.OutputPath);
+                DeleteIfExists(snapshotPath);
             }
 
             StatusChanged?.Invoke(this, $"Replay сохранён: {outputPath}");
@@ -215,6 +225,8 @@ public sealed class RecordingService : IAsyncDisposable
             DeleteIfExists(temporaryPath);
         }
 
+        ClearCompletedReplaySegments();
+
         _gate.Dispose();
     }
 
@@ -222,7 +234,8 @@ public sealed class RecordingService : IAsyncDisposable
         AppSettings settings,
         CaptureTarget target,
         string outputPath,
-        bool microphoneMuted)
+        bool microphoneMuted,
+        bool isReplayBuffer)
     {
         var outputAudio = string.IsNullOrWhiteSpace(settings.OutputAudioDeviceId)
             ? LoopbackAudioSource.Default
@@ -276,7 +289,8 @@ public sealed class RecordingService : IAsyncDisposable
                     EncoderProfile = H264Profile.High,
                     BitrateMode = H264BitrateControlMode.UnconstrainedVBR
                 },
-                IsMp4FastStartEnabled = true
+                IsMp4FastStartEnabled = !isReplayBuffer,
+                IsFragmentedMp4Enabled = isReplayBuffer
             },
             OutputOptions = new OutputOptions { RecorderMode = RecorderMode.Video },
             MouseOptions = new MouseOptions { IsMousePointerEnabled = true },
@@ -305,6 +319,109 @@ public sealed class RecordingService : IAsyncDisposable
         var directory = Path.Combine(Path.GetTempPath(), "CLIPALKA", "Replay");
         Directory.CreateDirectory(directory);
         return Path.Combine(directory, $"buffer_{Guid.NewGuid():N}.mp4");
+    }
+
+    private static string CreateReplaySnapshotPath()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "CLIPALKA", "Replay");
+        Directory.CreateDirectory(directory);
+        return Path.Combine(directory, $"snapshot_{Guid.NewGuid():N}.mp4");
+    }
+
+    private async Task RotateReplaySessionAsync(
+        AppSettings settings,
+        CaptureTarget target,
+        bool keepFinishedSegment)
+    {
+        var current = _replaySession;
+        var next = CreateSession(settings, target, CreateReplayTemporaryPath(), _microphoneMuted, true);
+        next.Start();
+        ApplyMicrophoneState(next);
+        _replaySession = next;
+
+        if (current is null)
+        {
+            return;
+        }
+
+        await Task.Delay(ReplaySegmentOverlap);
+        await current.StopAsync();
+        current.Dispose();
+        if (keepFinishedSegment)
+        {
+            _completedReplaySegments.Enqueue(new CompletedReplaySegment(current.OutputPath, DateTimeOffset.UtcNow));
+        }
+        else
+        {
+            DeleteIfExists(current.OutputPath);
+        }
+    }
+
+    private void CleanupExpiredReplaySegments(int replaySeconds)
+    {
+        var oldestUsefulTime = DateTimeOffset.UtcNow - TimeSpan.FromSeconds(replaySeconds + 5);
+        while (_completedReplaySegments.TryPeek(out var segment) && segment.FinishedAtUtc < oldestUsefulTime)
+        {
+            _completedReplaySegments.Dequeue();
+            DeleteIfExists(segment.Path);
+        }
+    }
+
+    private void ClearCompletedReplaySegments()
+    {
+        while (_completedReplaySegments.TryDequeue(out var segment))
+        {
+            DeleteIfExists(segment.Path);
+        }
+    }
+
+    private static async Task CopyGrowingFileSnapshotAsync(string sourcePath, string destinationPath)
+    {
+        await using var source = new FileStream(
+            sourcePath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete,
+            1024 * 1024,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
+        await using var destination = new FileStream(
+            destinationPath,
+            FileMode.CreateNew,
+            FileAccess.Write,
+            FileShare.None,
+            1024 * 1024,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
+
+        var remaining = source.Length;
+        var buffer = new byte[1024 * 1024];
+        while (remaining > 0)
+        {
+            var bytesRead = await source.ReadAsync(buffer.AsMemory(0, (int)Math.Min(buffer.Length, remaining)));
+            if (bytesRead == 0)
+            {
+                break;
+            }
+            await destination.WriteAsync(buffer.AsMemory(0, bytesRead));
+            remaining -= bytesRead;
+        }
+    }
+
+    private static void DeleteReplayTemporaryFiles()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "CLIPALKA", "Replay");
+        if (!Directory.Exists(directory))
+        {
+            return;
+        }
+
+        var staleBefore = DateTime.UtcNow - TimeSpan.FromDays(1);
+        foreach (var path in Directory.EnumerateFiles(directory, "*.mp4"))
+        {
+            if (File.GetLastWriteTimeUtc(path) < staleBefore)
+            {
+                DeleteIfExists(path);
+            }
+        }
     }
 
     private static void DeleteIfExists(string path)
@@ -345,10 +462,12 @@ public sealed class RecordingService : IAsyncDisposable
         public CaptureAudioSource? Microphone { get; }
         public string OutputPath { get; }
         public CaptureTarget Target { get; }
+        public DateTimeOffset StartedAtUtc { get; private set; }
 
         public void Start()
         {
             Recorder.Record(OutputPath);
+            StartedAtUtc = DateTimeOffset.UtcNow;
             _started = true;
         }
 
@@ -377,4 +496,6 @@ public sealed class RecordingService : IAsyncDisposable
         private void OnRecordingFailed(object? sender, RecordingFailedEventArgs eventArgs) =>
             _stopped.TrySetException(new InvalidOperationException(eventArgs.Error));
     }
+
+    private sealed record CompletedReplaySegment(string Path, DateTimeOffset FinishedAtUtc);
 }

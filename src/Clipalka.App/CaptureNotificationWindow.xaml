@@ -1,0 +1,37 @@
+<Window x:Class="Clipalka.App.CaptureNotificationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Width="344" Height="92" SizeToContent="Manual"
+        WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="True"
+        Background="Transparent" ShowInTaskbar="False" ShowActivated="False"
+        Topmost="True" Focusable="False">
+    <Border x:Name="ToastRoot" Margin="10" Background="#F21A1B20" BorderBrush="#4B4D59"
+            BorderThickness="1" CornerRadius="15" Padding="0" IsHitTestVisible="False">
+        <Border.Effect>
+            <DropShadowEffect Color="#000000" BlurRadius="22" ShadowDepth="6" Opacity="0.55" />
+        </Border.Effect>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="5" />
+                <ColumnDefinition Width="64" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Border x:Name="AccentBar" CornerRadius="15,0,0,15" Background="#5865F2" />
+            <Border Grid.Column="1" Width="40" Height="40" CornerRadius="14" Background="#2A2B33"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock x:Name="IconText" Text="✓" FontSize="19" FontWeight="SemiBold"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="0,0,16,0">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="CLIPALKA" Foreground="#898D9A" FontSize="8" FontWeight="Bold" Margin="0,0,7,0" />
+                    <Ellipse x:Name="StatusDot" Width="5" Height="5" Fill="#45D483" VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock x:Name="TitleText" Text="Replay сохранён" Foreground="#F7F7FA"
+                           FontSize="13" FontWeight="SemiBold" Margin="0,3,0,0" />
+                <TextBlock x:Name="MessageText" Text="Последние 30 секунд готовы" Foreground="#B7BAC5"
+                           FontSize="10" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

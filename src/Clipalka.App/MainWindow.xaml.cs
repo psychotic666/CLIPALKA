@@ -22,6 +22,7 @@ public partial class MainWindow : Window
     private readonly CaptureTargetService _captureTargets = new();
     private readonly RecordingService _recordingService;
     private readonly TrayNotificationService _trayNotifications;
+    private readonly CaptureNotificationService _captureNotifications;
     private readonly DispatcherTimer _replayTargetTimer;
     private AppSettings _settings = new();
     private GlobalHotkeyService? _hotkeys;
@@ -35,6 +36,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         _recordingService = new RecordingService(new ReplayClipExporter(), _captureTargets);
         _trayNotifications = new TrayNotificationService();
+        _captureNotifications = new CaptureNotificationService(Dispatcher);
         _trayNotifications.OpenRequested += () => Dispatcher.BeginInvoke(RestoreFromTray);
         _trayNotifications.ToggleRecordingRequested += () =>
             Dispatcher.BeginInvoke(new Action(() => _ = ToggleRecordingAsync()));
@@ -79,6 +81,10 @@ public partial class MainWindow : Window
             if (_settings.StartReplayBufferWithApp)
             {
                 await _recordingService.StartReplayBufferAsync(_settings);
+                _captureNotifications.Show(
+                    CaptureNotificationKind.Replay,
+                    "Replay готов",
+                    $"В фоне сохраняются последние {_settings.ReplaySeconds} секунд");
             }
 
             UpdateUi();
@@ -102,7 +108,9 @@ public partial class MainWindow : Window
             var outputPath = await _recordingService.ToggleRecordingAsync(_settings);
             if (wasRecording)
             {
-                _trayNotifications.ShowInfo(
+                _captureNotifications.StopRecordingIndicator();
+                _captureNotifications.Show(
+                    CaptureNotificationKind.Success,
                     "Запись остановлена и сохранена",
                     string.IsNullOrWhiteSpace(outputPath)
                         ? "Видео сохранено в выбранную папку."
@@ -110,7 +118,13 @@ public partial class MainWindow : Window
             }
             else
             {
-                _trayNotifications.ShowInfo("Запись началась", "CLIPALKA записывает экран и звук.");
+                _captureNotifications.StartRecordingIndicator();
+                _captureNotifications.Show(
+                    CaptureNotificationKind.Recording,
+                    "Запись началась",
+                    _recordingService.ReplayCaptureName is { Length: > 0 } name
+                        ? $"Источник: {name}"
+                        : "CLIPALKA записывает игру и звук");
             }
             UpdateUi();
         });
@@ -125,8 +139,13 @@ public partial class MainWindow : Window
             ApplyFormToSettings();
             ReplayButton.IsEnabled = false;
             SetStatus("Сохраняю последние 30 секунд…");
+            _captureNotifications.Show(
+                CaptureNotificationKind.Replay,
+                "Сохраняем момент…",
+                $"Подготавливаем последние {_settings.ReplaySeconds} секунд");
             var outputPath = await _recordingService.SaveReplayAsync(_settings);
-            _trayNotifications.ShowInfo(
+            _captureNotifications.Show(
+                CaptureNotificationKind.Success,
                 "Replay сохранён",
                 string.IsNullOrWhiteSpace(outputPath)
                     ? "Последние 30 секунд сохранены."
@@ -138,6 +157,10 @@ public partial class MainWindow : Window
     private void MicrophoneButton_Click(object sender, RoutedEventArgs e)
     {
         _recordingService.SetMicrophoneMuted(!_recordingService.IsMicrophoneMuted);
+        _captureNotifications.Show(
+            CaptureNotificationKind.Microphone,
+            _recordingService.IsMicrophoneMuted ? "Микрофон выключен" : "Микрофон включён",
+            _recordingService.IsMicrophoneMuted ? "Голос не попадёт в запись" : "Голос снова записывается");
         UpdateUi();
     }
 
@@ -205,6 +228,7 @@ public partial class MainWindow : Window
         _replayTargetTimer.Stop();
         _hotkeys?.Dispose();
         await _recordingService.DisposeAsync();
+        _captureNotifications.Dispose();
         _trayNotifications.Dispose();
         Closing -= Window_Closing;
         Close();
@@ -404,6 +428,7 @@ public partial class MainWindow : Window
     private void ShowError(string title, Exception exception)
     {
         SetStatus(exception.Message);
+        _captureNotifications.Show(CaptureNotificationKind.Error, title, exception.Message);
         MessageBox.Show(this, exception.Message, title, MessageBoxButton.OK, MessageBoxImage.Error);
     }
 

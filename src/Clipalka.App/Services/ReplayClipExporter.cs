@@ -8,21 +8,50 @@ public sealed class ReplayClipExporter
 {
     public async Task ExportLastAsync(string sourcePath, string destinationPath, TimeSpan duration)
     {
-        var source = await StorageFile.GetFileFromPathAsync(sourcePath);
+        await ExportLastAsync([sourcePath], destinationPath, duration);
+    }
+
+    public async Task ExportLastAsync(
+        IReadOnlyList<string> sourcePaths,
+        string destinationPath,
+        TimeSpan duration)
+    {
+        var sourceClips = new List<MediaClip>();
+        foreach (var sourcePath in sourcePaths.Where(File.Exists))
+        {
+            var source = await StorageFile.GetFileFromPathAsync(sourcePath);
+            sourceClips.Add(await MediaClip.CreateFromFileAsync(source));
+        }
+
+        if (sourceClips.Count == 0)
+        {
+            throw new InvalidOperationException("Replay-буфер пока не содержит видео.");
+        }
+
         var destinationFolder = await StorageFolder.GetFolderFromPathAsync(
             Path.GetDirectoryName(destinationPath)!);
         var destination = await destinationFolder.CreateFileAsync(
-            Path.GetFileName(destinationPath), CreationCollisionOption.GenerateUniqueName);
+            Path.GetFileName(destinationPath), CreationCollisionOption.ReplaceExisting);
 
-        var clip = await MediaClip.CreateFromFileAsync(source);
-        if (clip.OriginalDuration > duration)
+        var trimFromStart = sourceClips.Aggregate(TimeSpan.Zero, (total, clip) => total + clip.OriginalDuration) - duration;
+        var composition = new MediaComposition();
+        foreach (var clip in sourceClips)
         {
-            clip.TrimTimeFromStart = clip.OriginalDuration - duration;
+            if (trimFromStart >= clip.OriginalDuration)
+            {
+                trimFromStart -= clip.OriginalDuration;
+                continue;
+            }
+
+            if (trimFromStart > TimeSpan.Zero)
+            {
+                clip.TrimTimeFromStart = trimFromStart;
+                trimFromStart = TimeSpan.Zero;
+            }
+            composition.Clips.Add(clip);
         }
 
-        var composition = new MediaComposition();
-        composition.Clips.Add(clip);
-        var result = await composition.RenderToFileAsync(destination, MediaTrimmingPreference.Precise);
+        var result = await composition.RenderToFileAsync(destination, MediaTrimmingPreference.Fast);
         if (result != TranscodeFailureReason.None)
         {
             throw new InvalidOperationException($"Windows не смог обрезать replay: {result}.");

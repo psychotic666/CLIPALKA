@@ -233,7 +233,7 @@
                         <Ellipse Width="6" Height="6" Fill="{StaticResource SuccessBrush}" Margin="0,0,8,0" />
                         <TextBlock x:Name="StatusTextBlock" Text="Подготовка…" Foreground="{StaticResource MutedBrush}" FontSize="9" />
                     </StackPanel>
-                    <TextBlock Text="CLIPALKA  ·  v0.5" Foreground="{StaticResource SubtleBrush}" FontSize="8" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                    <TextBlock Text="CLIPALKA  ·  v0.6" Foreground="{StaticResource SubtleBrush}" FontSize="8" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center" />
                 </Grid>
             </Border>
         </Grid>
