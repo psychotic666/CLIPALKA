@@ -23,6 +23,8 @@ public partial class MainWindow : Window
         OutputDeviceComboBox.ItemsSource = new[] { new DeviceOption("test", "SteelSeries Sonar — Gaming") };
         InputDeviceComboBox.ItemsSource = new[] { new DeviceOption("test", "SteelSeries Sonar — Microphone") };
         PopulateForm();
+        RecordHotkeyHint.Text = _settings.RecordHotkey.Replace("+", " + ");
+        ReplayHotkeyHint.Text = _settings.ReplayHotkey.Replace("+", " + ");
         ReplaySourceText.Text = "Rocket League";
         CaptureStateText.Text = "Захват активен";
         CaptureDescriptionText.Text = "Игра запущена и отслеживается";
@@ -40,6 +42,10 @@ public partial class MainWindow : Window
             root.Measure(size);
             root.Arrange(new Rect(size));
             root.UpdateLayout();
+            var hintBottom = RecordHotkeyHint.TransformToAncestor(CaptureActionsGrid)
+                .Transform(new Point(0, RecordHotkeyHint.ActualHeight)).Y;
+            if (hintBottom > CaptureActionsGrid.ActualHeight || Math.Abs(ReplayButton.ActualHeight - 84) > 0.1)
+                throw new InvalidOperationException("Capture action layout clips its controls.");
             var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)size.Width, (int)size.Height, 96, 96, PixelFormats.Pbgra32);
             bitmap.Render(root);
             var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();

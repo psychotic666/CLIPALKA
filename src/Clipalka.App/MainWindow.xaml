@@ -81,7 +81,7 @@
                             <Grid.ColumnDefinitions><ColumnDefinition x:Name="DashboardMainColumn" Width="*" /><ColumnDefinition x:Name="DashboardGapColumn" Width="24" /><ColumnDefinition x:Name="DashboardRightColumn" Width="425" /></Grid.ColumnDefinitions>
 
                             <StackPanel Grid.Column="0">
-                                <Grid Height="105" Margin="0,0,0,0">
+                                <Grid Height="101" Margin="0,0,0,0">
                                     <StackPanel>
                                         <TextBlock Text="Добрый вечер" FontSize="46" FontWeight="Bold" />
                                         <TextBlock Text="Хорошей игры! Мы позаботимся о твоих лучших моментах." Foreground="{StaticResource MutedBrush}" FontSize="17" Margin="0,4,0,0" />
@@ -89,7 +89,7 @@
                                     <Button x:Name="ContinueButton" Height="54" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,0,0" Click="MinimizeButton_Click" Background="#121B2A" BorderBrush="#34415A" Padding="20,12" FontSize="14"><StackPanel Orientation="Horizontal"><Path Data="{StaticResource CrownIcon}" Width="20" Height="20" Fill="#FFBF47" Stretch="Uniform" Margin="0,0,10,0" /><TextBlock Text="Играем дальше   ›" FontSize="14" VerticalAlignment="Center" /></StackPanel></Button>
                                 </Grid>
 
-                                <Border Style="{StaticResource SettingsPanel}" Padding="16" Margin="0,0,0,16">
+                                <Border Style="{StaticResource SettingsPanel}" Padding="16,16,16,12" Margin="0,0,0,16">
                                     <StackPanel>
                                         <Grid Margin="0,0,0,12">
                                             <Grid.ColumnDefinitions><ColumnDefinition Width="76" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
@@ -106,7 +106,7 @@
                                             </Border>
                                         </Grid>
 
-                                        <Border Height="280" CornerRadius="10" BorderBrush="#303D57" BorderThickness="1">
+                                        <Border Height="270" CornerRadius="10" BorderBrush="#303D57" BorderThickness="1">
                                             <Border.Background>
                                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                                                     <GradientStop Color="#17233A" Offset="0" />
@@ -123,7 +123,7 @@
                                             </Grid>
                                         </Border>
 
-                                        <Grid Height="140" Margin="6,18,6,0">
+                                        <Grid x:Name="CaptureActionsGrid" Height="154" Margin="6,18,6,0">
                                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="2.3*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0" HorizontalAlignment="Center">
                                                 <Button x:Name="RecordButton" Style="{StaticResource CircularActionButton}" Click="RecordButton_Click" Background="#1A2234" AutomationProperties.Name="Начать или остановить запись">
