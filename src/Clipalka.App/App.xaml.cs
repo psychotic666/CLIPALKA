@@ -8,7 +8,6 @@ public partial class App : System.Windows.Application
     {
         if (e.Args.Length == 2 && e.Args[0] == "--render-ui")
         {
-            StartupUri = null;
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
             base.OnStartup(e);
             try
@@ -25,6 +24,7 @@ public partial class App : System.Windows.Application
             }
             return;
         }
+        StartupUri = new Uri("MainWindow.xaml", UriKind.Relative);
         base.OnStartup(e);
     }
 }
