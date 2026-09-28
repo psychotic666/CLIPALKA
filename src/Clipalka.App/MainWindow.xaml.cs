@@ -15,6 +15,44 @@ namespace Clipalka.App;
 
 public partial class MainWindow : Window
 {
+    // Render the production visual tree on a Windows runner; fixture values never enter normal startup.
+    public void RenderUiSamples(string directory)
+    {
+        Directory.CreateDirectory(directory);
+        DisplayComboBox.ItemsSource = new[] { new DeviceOption("test", "AF24H1") };
+        OutputDeviceComboBox.ItemsSource = new[] { new DeviceOption("test", "SteelSeries Sonar — Gaming") };
+        InputDeviceComboBox.ItemsSource = new[] { new DeviceOption("test", "SteelSeries Sonar — Microphone") };
+        PopulateForm();
+        ReplaySourceText.Text = "Rocket League";
+        CaptureStateText.Text = "Захват активен";
+        CaptureDescriptionText.Text = "Игра запущена и отслеживается";
+        var thumbnail = new System.Windows.Media.Imaging.BitmapImage(new Uri("pack://application:,,,/Assets/capture-preview.png"));
+        RecentClipsItemsControl.ItemsSource = Enumerable.Range(1, 4).Select(i =>
+            new RecentClipItem("", $"Пример клипа {i}", "Сегодня, 21:42", "0:30", thumbnail)).ToList();
+        RecentClipsEmptyText.Visibility = Visibility.Collapsed;
+        var root = (FrameworkElement)Content;
+        Content = null;
+        foreach (var size in new[] { new Size(1585, 992), new Size(1280, 800) })
+        {
+            DashboardRightColumn.Width = new GridLength(size.Width < 1450 ? 360 : 425);
+            DashboardGapColumn.Width = new GridLength(size.Width < 1450 ? 20 : 24);
+            ContinueButton.Visibility = size.Width < 1350 ? Visibility.Collapsed : Visibility.Visible;
+            root.Width = size.Width;
+            root.Height = size.Height;
+            root.Measure(size);
+            root.Arrange(new Rect(size));
+            root.UpdateLayout();
+            var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)size.Width, (int)size.Height, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(root);
+            var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+            encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+            using var file = File.Create(Path.Combine(directory, $"ui-{size.Width}.png"));
+            encoder.Save(file);
+        }
+        _trayNotifications.Dispose();
+        _captureNotifications.Dispose();
+    }
+
     private const int RecordHotkeyId = 1001;
     private const int ReplayHotkeyId = 1002;
     private readonly ISettingsStore _settingsStore;
@@ -464,16 +502,18 @@ public partial class MainWindow : Window
     {
         RecordButtonTitle.Text = _recordingService.IsRecording ? "Остановить запись" : "Запись";
         RecordButton.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
-            _recordingService.IsRecording ? "#A92238" : "#D92D45"));
+            _recordingService.IsRecording ? "#402331" : "#151B27"));
         MicrophoneButtonTitle.Text = "Микрофон";
         MicrophoneIcon.Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
-            _recordingService.IsMicrophoneMuted ? "#F04461" : "#45D483"));
+            _recordingService.IsMicrophoneMuted ? "#F04461" : "#F5F7FC"));
         ReplayStatusText.Text = _recordingService.IsReplayBuffering ? "CLIPALKA работает" : "Replay выключен";
         ReplayStatusDot.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
             _recordingService.IsReplayBuffering ? "#36D399" : "#64748B"));
         ReplaySourceText.Text = !_recordingService.IsReplayBuffering
             ? "Источник не выбран"
             : _recordingService.ReplayCaptureName ?? "Источник определяется";
+        CaptureStateText.Text = _recordingService.IsReplayBuffering ? "Захват активен" : "Ожидание захвата";
+        CaptureDescriptionText.Text = !_recordingService.IsReplayBuffering ? "Replay-буфер выключен" : _recordingService.IsReplayCapturingApplication ? "Игра запущена и отслеживается" : "Записывается выбранный монитор";
         ReplayButton.IsEnabled = _recordingService.IsReplayBuffering;
         RecordHotkeyHint.Text = string.IsNullOrWhiteSpace(_settings.RecordHotkey) ? "Хоткей выключен" : _settings.RecordHotkey.Replace("+", " + ");
         ReplayHotkeyHint.Text = string.IsNullOrWhiteSpace(_settings.ReplayHotkey) ? "Хоткей выключен" : _settings.ReplayHotkey.Replace("+", " + ");

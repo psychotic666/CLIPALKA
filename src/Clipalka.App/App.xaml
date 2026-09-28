@@ -4,12 +4,12 @@
              StartupUri="MainWindow.xaml">
     <Application.Resources>
         <SolidColorBrush x:Key="WindowBrush" Color="#090E18" />
-        <SolidColorBrush x:Key="SidebarBrush" Color="#0D1421" />
+        <SolidColorBrush x:Key="SidebarBrush" Color="#10151E" />
         <SolidColorBrush x:Key="ContentBrush" Color="#0B111D" />
-        <SolidColorBrush x:Key="PanelBrush" Color="#111A2A" />
+        <SolidColorBrush x:Key="PanelBrush" Color="#121720" />
         <SolidColorBrush x:Key="PanelHoverBrush" Color="#172238" />
-        <SolidColorBrush x:Key="InputBrush" Color="#151F31" />
-        <SolidColorBrush x:Key="BorderBrush" Color="#263248" />
+        <SolidColorBrush x:Key="InputBrush" Color="#1B202B" />
+        <SolidColorBrush x:Key="BorderBrush" Color="#2C3341" />
         <SolidColorBrush x:Key="TextBrush" Color="#F5F7FC" />
         <SolidColorBrush x:Key="MutedBrush" Color="#A4AFC2" />
         <SolidColorBrush x:Key="SubtleBrush" Color="#6F7C92" />
@@ -52,7 +52,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="Root" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8">
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                               VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
                         </Border>
@@ -85,7 +85,7 @@
         </Style>
 
         <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+            <Setter Property="Background"><Setter.Value><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#9567FF" Offset="0"/><GradientStop Color="#4E2BE9" Offset="1"/></LinearGradientBrush></Setter.Value></Setter>
             <Setter Property="BorderBrush" Value="#9A82FF" />
             <Setter Property="FontSize" Value="14" />
             <Setter Property="FontWeight" Value="Bold" />
@@ -95,7 +95,7 @@
         <Style x:Key="CircularActionButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Width" Value="74" /><Setter Property="Height" Value="74" /><Setter Property="MinHeight" Value="74" />
             <Setter Property="Padding" Value="0" /><Setter Property="BorderThickness" Value="2" />
-            <Setter Property="Background" Value="#111A2A" /><Setter Property="BorderBrush" Value="#56627A" />
+            <Setter Property="Background" Value="#121720" /><Setter Property="BorderBrush" Value="#56627A" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -165,7 +165,7 @@
             </Style.Triggers>
         </Style>
         <Style TargetType="ComboBox">
-            <Setter Property="MinHeight" Value="44" /><Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+            <Setter Property="MinHeight" Value="36" /><Setter Property="Foreground" Value="{StaticResource TextBrush}" />
             <Setter Property="Background" Value="{StaticResource InputBrush}" /><Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="FontSize" Value="14" />
@@ -175,7 +175,7 @@
                         <Grid>
                             <Border x:Name="Root" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" />
                             <ToggleButton Background="Transparent" BorderThickness="0" Focusable="False" ClickMode="Press" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
-                                <TextBlock Text="⌄" Foreground="{StaticResource MutedBrush}" FontSize="15" HorizontalAlignment="Right" Margin="0,0,12,4" />
+                                <ToggleButton.Template><ControlTemplate TargetType="ToggleButton"><Border Background="Transparent"><Path Data="M0,0 L5,5 L10,0" Stroke="#CDD2DE" StrokeThickness="1.5" Width="10" Height="6" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,14,0"/></Border></ControlTemplate></ToggleButton.Template>
                             </ToggleButton>
                             <ContentPresenter Margin="12,0,36,0" VerticalAlignment="Center" IsHitTestVisible="False" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" TextElement.Foreground="{TemplateBinding Foreground}" />
                             <Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True" PopupAnimation="Fade">
