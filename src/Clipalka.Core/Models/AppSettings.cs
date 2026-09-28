@@ -10,6 +10,8 @@ public sealed class AppSettings
     public string? DisplayDeviceName { get; set; }
     public string? OutputAudioDeviceId { get; set; }
     public string? InputAudioDeviceId { get; set; }
+    public int OutputVolumePercent { get; set; } = 82;
+    public int MicrophoneVolumePercent { get; set; } = 68;
     public string RecordHotkey { get; set; } = "Ctrl+Shift+R";
     public string ReplayHotkey { get; set; } = "Ctrl+Shift+Z";
     public bool StartReplayBufferWithApp { get; set; } = true;

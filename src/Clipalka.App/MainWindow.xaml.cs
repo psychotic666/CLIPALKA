@@ -79,6 +79,7 @@ public partial class MainWindow : Window
             {
                 await _settingsStore.SaveAsync(_settings);
             }
+            await LoadRecentClipsAsync();
             _hotkeys = new GlobalHotkeyService();
             RegisterHotkeys();
 
@@ -119,6 +120,7 @@ public partial class MainWindow : Window
                     string.IsNullOrWhiteSpace(outputPath)
                         ? "Видео сохранено в выбранную папку."
                         : Path.GetFileName(outputPath));
+                await LoadRecentClipsAsync();
             }
             else
             {
@@ -154,6 +156,7 @@ public partial class MainWindow : Window
                 string.IsNullOrWhiteSpace(outputPath)
                     ? "Последние 30 секунд сохранены."
                     : Path.GetFileName(outputPath));
+            await LoadRecentClipsAsync();
             UpdateUi();
         });
     }
@@ -279,10 +282,11 @@ public partial class MainWindow : Window
 
         foreach (var button in new[] { DashboardNavButton, ClipsNavButton, VideoNavButton, HotkeysNavButton })
         {
-            button.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
-                ReferenceEquals(button, selectedNavigationButton) ? "#34266D" : "#00000000"));
-            button.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
-                ReferenceEquals(button, selectedNavigationButton) ? "#FFFFFF" : "#A4AFC2"));
+            var isSelected = ReferenceEquals(button, selectedNavigationButton);
+            button.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(isSelected ? "#34266D" : "#00000000"));
+            button.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(isSelected ? "#FFFFFF" : "#A4AFC2"));
+            button.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(isSelected ? "#8B5CF6" : "#00000000"));
+            button.BorderThickness = isSelected ? new Thickness(5, 0, 0, 0) : new Thickness(0);
         }
     }
 
@@ -291,6 +295,24 @@ public partial class MainWindow : Window
         ApplyFormToSettings();
         var outputDirectory = RecordingPathService.EnsureOutputDirectory(_settings.OutputDirectory);
         Process.Start(new ProcessStartInfo(outputDirectory) { UseShellExecute = true });
+    }
+
+    private void OpenClip_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string filePath } || !File.Exists(filePath))
+        {
+            return;
+        }
+
+        Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
+    }
+
+    private async Task LoadRecentClipsAsync()
+    {
+        var outputDirectory = _settings.OutputDirectory;
+        var clips = await Task.Run(() => RecentClipService.Load(outputDirectory));
+        RecentClipsItemsControl.ItemsSource = clips;
+        RecentClipsEmptyText.Visibility = clips.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private async void ReplayTargetTimer_Tick(object? sender, EventArgs e)
@@ -321,6 +343,14 @@ public partial class MainWindow : Window
         {
             HideToTray();
         }
+    }
+
+    private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        var compact = e.NewSize.Width < 1450;
+        DashboardRightColumn.Width = new GridLength(compact ? 360 : 425);
+        DashboardGapColumn.Width = new GridLength(compact ? 20 : 24);
+        ContinueButton.Visibility = e.NewSize.Width < 1350 ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void RestoreFromTray()
@@ -372,6 +402,8 @@ public partial class MainWindow : Window
         SelectDevice(DisplayComboBox, _settings.DisplayDeviceName);
         SelectDevice(OutputDeviceComboBox, _settings.OutputAudioDeviceId);
         SelectDevice(InputDeviceComboBox, _settings.InputAudioDeviceId);
+        OutputVolumeSlider.Value = _settings.OutputVolumePercent;
+        MicrophoneVolumeSlider.Value = _settings.MicrophoneVolumePercent;
     }
 
     private void ApplyFormToSettings()
@@ -384,6 +416,8 @@ public partial class MainWindow : Window
         _settings.DisplayDeviceName = (DisplayComboBox.SelectedItem as DeviceOption)?.Id;
         _settings.OutputAudioDeviceId = (OutputDeviceComboBox.SelectedItem as DeviceOption)?.Id;
         _settings.InputAudioDeviceId = (InputDeviceComboBox.SelectedItem as DeviceOption)?.Id;
+        _settings.OutputVolumePercent = (int)Math.Round(OutputVolumeSlider.Value);
+        _settings.MicrophoneVolumePercent = (int)Math.Round(MicrophoneVolumeSlider.Value);
         _settings.RecordHotkey = RecordHotkeyTextBox.Text.Trim();
         _settings.ReplayHotkey = ReplayHotkeyTextBox.Text.Trim();
         _settings.StartReplayBufferWithApp = StartReplayCheckBox.IsChecked == true;
@@ -428,15 +462,13 @@ public partial class MainWindow : Window
 
     private void UpdateUi()
     {
-        RecordButtonTitle.Text = _recordingService.IsRecording ? "Остановить запись" : "Начать запись";
+        RecordButtonTitle.Text = _recordingService.IsRecording ? "Остановить запись" : "Запись";
         RecordButton.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
             _recordingService.IsRecording ? "#A92238" : "#D92D45"));
-        MicrophoneButtonTitle.Text = _recordingService.IsMicrophoneMuted
-            ? "Микрофон выключен"
-            : "Микрофон включён";
-        MicrophoneIcon.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
+        MicrophoneButtonTitle.Text = "Микрофон";
+        MicrophoneIcon.Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
             _recordingService.IsMicrophoneMuted ? "#F04461" : "#45D483"));
-        ReplayStatusText.Text = _recordingService.IsReplayBuffering ? "Replay активен" : "Replay выключен";
+        ReplayStatusText.Text = _recordingService.IsReplayBuffering ? "CLIPALKA работает" : "Replay выключен";
         ReplayStatusDot.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
             _recordingService.IsReplayBuffering ? "#36D399" : "#64748B"));
         ReplaySourceText.Text = !_recordingService.IsReplayBuffering

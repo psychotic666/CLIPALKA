@@ -246,12 +246,12 @@ public sealed class RecordingService : IAsyncDisposable
         if (microphone is not null)
         {
             microphone.ForceMono = true;
-            microphone.Volume = microphoneMuted ? 0f : RecordingQualityProfile.MicrophoneVolume;
+            microphone.Volume = microphoneMuted ? 0f : VolumeFromPercent(settings.MicrophoneVolumePercent);
         }
 
         if (outputAudio is not null)
         {
-            outputAudio.Volume = RecordingQualityProfile.OutputVolume;
+            outputAudio.Volume = VolumeFromPercent(settings.OutputVolumePercent);
         }
 
         var audioOptions = new AudioOptions
@@ -298,7 +298,12 @@ public sealed class RecordingService : IAsyncDisposable
         };
         options.SourceOptions.RecordingSources.Add(target.Source);
 
-        return new RecordingSession(Recorder.CreateRecorder(options), microphone, outputPath, target);
+        return new RecordingSession(
+            Recorder.CreateRecorder(options),
+            microphone,
+            outputPath,
+            target,
+            VolumeFromPercent(settings.MicrophoneVolumePercent));
     }
 
     private void ApplyMicrophoneState(RecordingSession? session)
@@ -308,7 +313,7 @@ public sealed class RecordingService : IAsyncDisposable
             return;
         }
 
-        session.Microphone.Volume = _microphoneMuted ? 0f : RecordingQualityProfile.MicrophoneVolume;
+        session.Microphone.Volume = _microphoneMuted ? 0f : session.MicrophoneVolume;
         session.Recorder.GetDynamicOptionsBuilder()
             .SetUpdatedAudioSource(session.Microphone)
             .Apply();
@@ -320,6 +325,8 @@ public sealed class RecordingService : IAsyncDisposable
         Directory.CreateDirectory(directory);
         return Path.Combine(directory, $"buffer_{Guid.NewGuid():N}.mp4");
     }
+
+    private static float VolumeFromPercent(int value) => Math.Clamp(value, 0, 100) / 100f;
 
     private static string CreateReplaySnapshotPath()
     {
@@ -448,12 +455,14 @@ public sealed class RecordingService : IAsyncDisposable
             Recorder recorder,
             CaptureAudioSource? microphone,
             string outputPath,
-            CaptureTarget target)
+            CaptureTarget target,
+            float microphoneVolume)
         {
             Recorder = recorder;
             Microphone = microphone;
             OutputPath = outputPath;
             Target = target;
+            MicrophoneVolume = microphoneVolume;
             Recorder.OnRecordingComplete += OnRecordingComplete;
             Recorder.OnRecordingFailed += OnRecordingFailed;
         }
@@ -462,6 +471,7 @@ public sealed class RecordingService : IAsyncDisposable
         public CaptureAudioSource? Microphone { get; }
         public string OutputPath { get; }
         public CaptureTarget Target { get; }
+        public float MicrophoneVolume { get; }
         public DateTimeOffset StartedAtUtc { get; private set; }
 
         public void Start()

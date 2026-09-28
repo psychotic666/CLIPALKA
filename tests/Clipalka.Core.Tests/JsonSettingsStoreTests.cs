@@ -18,6 +18,8 @@ public sealed class JsonSettingsStoreTests : IDisposable
             FramesPerSecond = 120,
             OutputAudioDeviceId = "sonar-game",
             InputAudioDeviceId = "sonar-mic",
+            OutputVolumePercent = 91,
+            MicrophoneVolumePercent = 73,
             RecordHotkey = string.Empty,
             ReplayHotkey = "Shift+Z"
         };
@@ -29,6 +31,8 @@ public sealed class JsonSettingsStoreTests : IDisposable
         Assert.Equal(expected.FramesPerSecond, actual.FramesPerSecond);
         Assert.Equal(expected.OutputAudioDeviceId, actual.OutputAudioDeviceId);
         Assert.Equal(expected.InputAudioDeviceId, actual.InputAudioDeviceId);
+        Assert.Equal(expected.OutputVolumePercent, actual.OutputVolumePercent);
+        Assert.Equal(expected.MicrophoneVolumePercent, actual.MicrophoneVolumePercent);
         Assert.Equal(expected.RecordHotkey, actual.RecordHotkey);
         Assert.Equal(expected.ReplayHotkey, actual.ReplayHotkey);
     }
