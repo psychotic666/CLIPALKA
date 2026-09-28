@@ -9,6 +9,9 @@ public sealed class HotkeyBindingTests
     [InlineData("Ctrl+Shift+R", HotkeyModifiers.Control | HotkeyModifiers.Shift | HotkeyModifiers.NoRepeat, 0x52)]
     [InlineData("Alt+F12", HotkeyModifiers.Alt | HotkeyModifiers.NoRepeat, 0x7B)]
     [InlineData("Win+Space", HotkeyModifiers.Windows | HotkeyModifiers.NoRepeat, 0x20)]
+    [InlineData("Shift+Delete", HotkeyModifiers.Shift | HotkeyModifiers.NoRepeat, 0x2E)]
+    [InlineData("PageDown", HotkeyModifiers.NoRepeat, 0x22)]
+    [InlineData("Ctrl+Comma", HotkeyModifiers.Control | HotkeyModifiers.NoRepeat, 0xBC)]
     public void TryParse_ValidCombination_ReturnsBinding(
         string value,
         HotkeyModifiers expectedModifiers,
@@ -63,5 +66,17 @@ public sealed class HotkeyBindingTests
 
         Assert.True(protectedBinding.IsTypingSafe);
         Assert.Equal("Ctrl+Shift+Z", protectedBinding.ToString());
+    }
+
+    [Theory]
+    [InlineData(0x2E, "Delete")]
+    [InlineData(0x25, "Left")]
+    [InlineData(0x6B, "NumAdd")]
+    [InlineData(0xBC, "Comma")]
+    public void ToString_UsesEnglishKeyNames(int virtualKey, string expected)
+    {
+        var binding = new HotkeyBinding(HotkeyModifiers.NoRepeat, virtualKey);
+
+        Assert.Equal(expected, binding.ToString());
     }
 }

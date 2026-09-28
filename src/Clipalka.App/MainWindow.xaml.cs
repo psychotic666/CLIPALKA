@@ -75,6 +75,10 @@ public partial class MainWindow : Window
             }
             LoadDevices();
             PopulateForm();
+            if (SynchronizeSelectedDevicesWithSettings())
+            {
+                await _settingsStore.SaveAsync(_settings);
+            }
             _hotkeys = new GlobalHotkeyService(new WindowInteropHelper(this).Handle);
             RegisterHotkeys();
 
@@ -251,18 +255,55 @@ public partial class MainWindow : Window
 
     private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
 
-    private void DashboardNavButton_Click(object sender, RoutedEventArgs e) => RecordButton.Focus();
+    private void DismissErrorButton_Click(object sender, RoutedEventArgs e) =>
+        ErrorBanner.Visibility = Visibility.Collapsed;
 
-    private void VideoNavButton_Click(object sender, RoutedEventArgs e) => ScrollSettingsTo(VideoSection);
+    private void DashboardNavButton_Click(object sender, RoutedEventArgs e) => ShowPage(
+        DashboardPage, DashboardNavButton, DashboardRailButton,
+        "Обзор", "Запись, replay и текущий источник", "\uE80F");
 
-    private void AudioNavButton_Click(object sender, RoutedEventArgs e) => ScrollSettingsTo(AudioSection);
+    private void VideoNavButton_Click(object sender, RoutedEventArgs e) => ShowPage(
+        VideoPage, VideoNavButton, VideoRailButton,
+        "Видео", "Источник, папка сохранения и частота кадров", "\uE714");
 
-    private void HotkeysNavButton_Click(object sender, RoutedEventArgs e) => ScrollSettingsTo(HotkeysSection);
+    private void AudioNavButton_Click(object sender, RoutedEventArgs e) => ShowPage(
+        AudioPage, AudioNavButton, AudioRailButton,
+        "Аудио", "Звук игры, Discord и микрофон", "\uE767");
 
-    private void ScrollSettingsTo(FrameworkElement section)
+    private void HotkeysNavButton_Click(object sender, RoutedEventArgs e) => ShowPage(
+        HotkeysPage, HotkeysNavButton, HotkeysRailButton,
+        "Хоткеи и поведение", "Управление CLIPALKA во время игры", "\uE765");
+
+    private void ShowPage(
+        FrameworkElement page,
+        Button selectedNavigationButton,
+        Button selectedRailButton,
+        string title,
+        string subtitle,
+        string icon)
     {
-        section.BringIntoView(new Rect(0, 0, section.ActualWidth, 180));
-        section.Focus();
+        foreach (var candidate in new[] { DashboardPage, VideoPage, AudioPage, HotkeysPage })
+        {
+            candidate.Visibility = ReferenceEquals(candidate, page) ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        foreach (var button in new[] { DashboardNavButton, VideoNavButton, AudioNavButton, HotkeysNavButton })
+        {
+            button.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
+                ReferenceEquals(button, selectedNavigationButton) ? "#404249" : "#00000000"));
+            button.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
+                ReferenceEquals(button, selectedNavigationButton) ? "#FFFFFF" : "#B5BAC1"));
+        }
+
+        foreach (var button in new[] { DashboardRailButton, VideoRailButton, AudioRailButton, HotkeysRailButton })
+        {
+            button.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
+                ReferenceEquals(button, selectedRailButton) ? "#5865F2" : "#313338"));
+        }
+
+        PageTitleText.Text = title;
+        PageSubtitleText.Text = subtitle;
+        PageIconText.Text = icon;
     }
 
     private async void ReplayTargetTimer_Tick(object? sender, EventArgs e)
@@ -363,6 +404,20 @@ public partial class MainWindow : Window
         _settings.HotkeysOnlyWhileGameActive = GameOnlyHotkeysCheckBox.IsChecked == true;
     }
 
+    private bool SynchronizeSelectedDevicesWithSettings()
+    {
+        var selectedDisplay = (DisplayComboBox.SelectedItem as DeviceOption)?.Id;
+        var selectedOutput = (OutputDeviceComboBox.SelectedItem as DeviceOption)?.Id;
+        var selectedInput = (InputDeviceComboBox.SelectedItem as DeviceOption)?.Id;
+        var changed = _settings.DisplayDeviceName != selectedDisplay ||
+                      _settings.OutputAudioDeviceId != selectedOutput ||
+                      _settings.InputAudioDeviceId != selectedInput;
+        _settings.DisplayDeviceName = selectedDisplay;
+        _settings.OutputAudioDeviceId = selectedOutput;
+        _settings.InputAudioDeviceId = selectedInput;
+        return changed;
+    }
+
     private void RegisterHotkeys()
     {
         if (_hotkeys is null)
@@ -428,8 +483,9 @@ public partial class MainWindow : Window
     private void ShowError(string title, Exception exception)
     {
         SetStatus(exception.Message);
+        ErrorBannerText.Text = exception.Message;
+        ErrorBanner.Visibility = Visibility.Visible;
         _captureNotifications.Show(CaptureNotificationKind.Error, title, exception.Message);
-        MessageBox.Show(this, exception.Message, title, MessageBoxButton.OK, MessageBoxImage.Error);
     }
 
     private void HotkeyTextBox_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
@@ -448,7 +504,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (key is Key.Back or Key.Delete or Key.Escape)
+        if (key is Key.Escape)
         {
             textBox.Clear();
             SetStatus("Хоткей отключён. Сохраните настройки, чтобы применить.");
@@ -476,12 +532,6 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (!binding.IsTypingSafe)
-        {
-            SetStatus("Добавьте Ctrl, Alt или Win — Shift+буква срабатывает при обычном наборе текста");
-            return;
-        }
-
         textBox.Text = formattedBinding;
         SetStatus($"Хоткей выбран: {binding}. Нажмите «Сохранить настройки».");
     }
@@ -504,11 +554,6 @@ public partial class MainWindow : Window
             throw new InvalidOperationException($"Некорректный хоткей {purpose}.");
         }
 
-        if (binding is not null && !binding.IsTypingSafe)
-        {
-            throw new InvalidOperationException(
-                $"Хоткей {purpose} может срабатывать при печати. Используйте Ctrl, Alt или Win.");
-        }
     }
 
     private static string NormalizeStoredHotkey(string value)
@@ -518,14 +563,15 @@ public partial class MainWindow : Window
             return value;
         }
 
-        return binding.WithTypingProtection().ToString();
+        return binding.ToString();
     }
 
     private static void SelectDevice(System.Windows.Controls.ComboBox comboBox, string? id)
     {
         var items = comboBox.ItemsSource?.Cast<DeviceOption>().ToList() ?? [];
-        comboBox.SelectedItem = items.FirstOrDefault(item => item.Id == id)
-                                ?? items.FirstOrDefault(item => item.IsDefault)
-                                ?? items.FirstOrDefault();
+        var selectedId = DeviceSelectionPolicy.SelectAvailableId(
+            items.Select(item => new SelectableDevice(item.Id, item.IsDefault)).ToList(),
+            id);
+        comboBox.SelectedItem = items.FirstOrDefault(item => item.Id == selectedId);
     }
 }
