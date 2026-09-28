@@ -79,7 +79,7 @@ public partial class MainWindow : Window
             {
                 await _settingsStore.SaveAsync(_settings);
             }
-            _hotkeys = new GlobalHotkeyService(new WindowInteropHelper(this).Handle);
+            _hotkeys = new GlobalHotkeyService();
             RegisterHotkeys();
 
             if (_settings.StartReplayBufferWithApp)
