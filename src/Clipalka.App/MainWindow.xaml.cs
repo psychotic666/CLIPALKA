@@ -34,11 +34,9 @@ public partial class MainWindow : Window
         Content = null;
         foreach (var size in new[] { new Size(1585, 992), new Size(1280, 800) })
         {
-            DashboardRightColumn.Width = new GridLength(size.Width < 1450 ? 360 : 425);
-            DashboardGapColumn.Width = new GridLength(size.Width < 1450 ? 20 : 24);
-            ContinueButton.Visibility = size.Width < 1350 ? Visibility.Collapsed : Visibility.Visible;
-            root.Width = size.Width;
-            root.Height = size.Height;
+            var scale = ApplyWindowScale(size);
+            root.Width = size.Width / scale;
+            root.Height = size.Height / scale;
             root.Measure(size);
             root.Arrange(new Rect(size));
             root.UpdateLayout();
@@ -385,10 +383,15 @@ public partial class MainWindow : Window
 
     private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        var compact = e.NewSize.Width < 1450;
-        DashboardRightColumn.Width = new GridLength(compact ? 360 : 425);
-        DashboardGapColumn.Width = new GridLength(compact ? 20 : 24);
-        ContinueButton.Visibility = e.NewSize.Width < 1350 ? Visibility.Collapsed : Visibility.Visible;
+        ApplyWindowScale(e.NewSize);
+    }
+
+    private double ApplyWindowScale(Size size)
+    {
+        var scale = Math.Clamp(Math.Min(size.Width / 1585, size.Height / 992), 0.7, 1);
+        ShellRoot.LayoutTransform = new ScaleTransform(scale, scale);
+        System.Windows.Shell.WindowChrome.GetWindowChrome(this).CaptionHeight = 70 * scale;
+        return scale;
     }
 
     private void RestoreFromTray()
