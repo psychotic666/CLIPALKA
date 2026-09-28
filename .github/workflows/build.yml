@@ -28,8 +28,12 @@ jobs:
       - name: Render WPF interface samples
         shell: pwsh
         run: |
-          $process = Start-Process -FilePath publish/win-x64/CLIPALKA.exe -ArgumentList '--render-ui', 'ui-preview' -Wait -PassThru
-          if ($process.ExitCode -ne 0) { Get-Content ui-preview/error.txt; throw "WPF render failed" }
+          $previewPath = Join-Path $PWD 'ui-preview'
+          dotnet publish/win-x64/CLIPALKA.dll --render-ui $previewPath
+          if ($LASTEXITCODE -ne 0) {
+            if (Test-Path ui-preview/error.txt) { Get-Content ui-preview/error.txt }
+            throw "WPF render failed: $LASTEXITCODE"
+          }
       - name: Upload UI previews
         uses: actions/upload-artifact@v4
         with:
