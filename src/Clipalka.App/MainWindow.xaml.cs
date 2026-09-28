@@ -1,8 +1,8 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Clipalka.App.Models;
@@ -258,52 +258,39 @@ public partial class MainWindow : Window
     private void DismissErrorButton_Click(object sender, RoutedEventArgs e) =>
         ErrorBanner.Visibility = Visibility.Collapsed;
 
-    private void DashboardNavButton_Click(object sender, RoutedEventArgs e) => ShowPage(
-        DashboardPage, DashboardNavButton, DashboardRailButton,
-        "Обзор", "Запись, replay и текущий источник", "\uE80F");
+    private void DashboardNavButton_Click(object sender, RoutedEventArgs e) =>
+        ShowPage(DashboardPage, DashboardNavButton);
 
-    private void VideoNavButton_Click(object sender, RoutedEventArgs e) => ShowPage(
-        VideoPage, VideoNavButton, VideoRailButton,
-        "Видео", "Источник, папка сохранения и частота кадров", "\uE714");
+    private void ClipsNavButton_Click(object sender, RoutedEventArgs e) =>
+        ShowPage(AudioPage, ClipsNavButton);
 
-    private void AudioNavButton_Click(object sender, RoutedEventArgs e) => ShowPage(
-        AudioPage, AudioNavButton, AudioRailButton,
-        "Аудио", "Звук игры, Discord и микрофон", "\uE767");
+    private void VideoNavButton_Click(object sender, RoutedEventArgs e) =>
+        ShowPage(VideoPage, VideoNavButton);
 
-    private void HotkeysNavButton_Click(object sender, RoutedEventArgs e) => ShowPage(
-        HotkeysPage, HotkeysNavButton, HotkeysRailButton,
-        "Хоткеи и поведение", "Управление CLIPALKA во время игры", "\uE765");
+    private void HotkeysNavButton_Click(object sender, RoutedEventArgs e) =>
+        ShowPage(HotkeysPage, HotkeysNavButton);
 
-    private void ShowPage(
-        FrameworkElement page,
-        Button selectedNavigationButton,
-        Button selectedRailButton,
-        string title,
-        string subtitle,
-        string icon)
+    private void ShowPage(FrameworkElement page, Button selectedNavigationButton)
     {
         foreach (var candidate in new[] { DashboardPage, VideoPage, AudioPage, HotkeysPage })
         {
             candidate.Visibility = ReferenceEquals(candidate, page) ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        foreach (var button in new[] { DashboardNavButton, VideoNavButton, AudioNavButton, HotkeysNavButton })
+        foreach (var button in new[] { DashboardNavButton, ClipsNavButton, VideoNavButton, HotkeysNavButton })
         {
             button.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
-                ReferenceEquals(button, selectedNavigationButton) ? "#404249" : "#00000000"));
+                ReferenceEquals(button, selectedNavigationButton) ? "#34266D" : "#00000000"));
             button.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
-                ReferenceEquals(button, selectedNavigationButton) ? "#FFFFFF" : "#B5BAC1"));
+                ReferenceEquals(button, selectedNavigationButton) ? "#FFFFFF" : "#A4AFC2"));
         }
+    }
 
-        foreach (var button in new[] { DashboardRailButton, VideoRailButton, AudioRailButton, HotkeysRailButton })
-        {
-            button.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
-                ReferenceEquals(button, selectedRailButton) ? "#5865F2" : "#313338"));
-        }
-
-        PageTitleText.Text = title;
-        PageSubtitleText.Text = subtitle;
-        PageIconText.Text = icon;
+    private void OpenClipsFolder_Click(object sender, RoutedEventArgs e)
+    {
+        ApplyFormToSettings();
+        var outputDirectory = RecordingPathService.EnsureOutputDirectory(_settings.OutputDirectory);
+        Process.Start(new ProcessStartInfo(outputDirectory) { UseShellExecute = true });
     }
 
     private async void ReplayTargetTimer_Tick(object? sender, EventArgs e)
@@ -454,9 +441,7 @@ public partial class MainWindow : Window
             _recordingService.IsReplayBuffering ? "#36D399" : "#64748B"));
         ReplaySourceText.Text = !_recordingService.IsReplayBuffering
             ? "Источник не выбран"
-            : _recordingService.IsReplayCapturingApplication
-                ? $"Игра: {_recordingService.ReplayCaptureName}"
-                : $"Монитор: {_recordingService.ReplayCaptureName}";
+            : _recordingService.ReplayCaptureName ?? "Источник определяется";
         ReplayButton.IsEnabled = _recordingService.IsReplayBuffering;
         RecordHotkeyHint.Text = string.IsNullOrWhiteSpace(_settings.RecordHotkey) ? "Хоткей выключен" : _settings.RecordHotkey.Replace("+", " + ");
         ReplayHotkeyHint.Text = string.IsNullOrWhiteSpace(_settings.ReplayHotkey) ? "Хоткей выключен" : _settings.ReplayHotkey.Replace("+", " + ");
@@ -538,6 +523,12 @@ public partial class MainWindow : Window
 
     private bool CanExecuteGlobalHotkey()
     {
+        if (IsActive &&
+            (RecordHotkeyTextBox.IsKeyboardFocusWithin || ReplayHotkeyTextBox.IsKeyboardFocusWithin))
+        {
+            return false;
+        }
+
         if (!_settings.HotkeysOnlyWhileGameActive || _captureTargets.IsLikelyGameActive())
         {
             return true;

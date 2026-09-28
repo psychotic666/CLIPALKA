@@ -11,14 +11,15 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <AssemblyName>CLIPALKA</AssemblyName>
     <RootNamespace>Clipalka.App</RootNamespace>
-    <Version>0.7.1</Version>
-    <FileVersion>0.7.1.0</FileVersion>
+    <Version>0.8.0</Version>
+    <FileVersion>0.8.0.0</FileVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\clipalka.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <Resource Include="Assets\clipalka-icon.png" />
     <Resource Include="Assets\clipalka.ico" />
+    <Resource Include="Assets\capture-preview.png" />
     <Using Remove="System.Drawing" />
     <Using Remove="System.Windows.Forms" />
   </ItemGroup>
