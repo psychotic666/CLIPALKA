@@ -34,8 +34,15 @@ public partial class MainWindow : Window
         RecentClipsEmptyText.Visibility = Visibility.Collapsed;
         var root = (FrameworkElement)Content;
         Content = null;
-        foreach (var size in new[] { new Size(1585, 992), new Size(1280, 800) })
+        foreach (var (name, size, diagnosticsPage) in new[]
         {
+            ("ui-1585", new Size(1585, 992), false),
+            ("ui-1280", new Size(1280, 800), false),
+            ("ui-diagnostics", new Size(1280, 800), true)
+        })
+        {
+            DashboardPage.Visibility = diagnosticsPage ? Visibility.Collapsed : Visibility.Visible;
+            VideoPage.Visibility = diagnosticsPage ? Visibility.Visible : Visibility.Collapsed;
             var scale = ApplyWindowScale(size);
             root.Width = size.Width / scale;
             root.Height = size.Height / scale;
@@ -44,13 +51,13 @@ public partial class MainWindow : Window
             root.UpdateLayout();
             var hintBottom = RecordHotkeyHint.TransformToAncestor(CaptureActionsGrid)
                 .Transform(new Point(0, RecordHotkeyHint.ActualHeight)).Y;
-            if (hintBottom > CaptureActionsGrid.ActualHeight || Math.Abs(ReplayButton.ActualHeight - 84) > 0.1)
+            if (!diagnosticsPage && (hintBottom > CaptureActionsGrid.ActualHeight || Math.Abs(ReplayButton.ActualHeight - 84) > 0.1))
                 throw new InvalidOperationException("Capture action layout clips its controls.");
             var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)size.Width, (int)size.Height, 96, 96, PixelFormats.Pbgra32);
             bitmap.Render(root);
             var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
             encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
-            using var file = File.Create(Path.Combine(directory, $"ui-{size.Width}.png"));
+            using var file = File.Create(Path.Combine(directory, name + ".png"));
             encoder.Save(file);
         }
         _trayNotifications.Dispose();
@@ -233,6 +240,7 @@ public partial class MainWindow : Window
     {
         await RunUiActionAsync(async () =>
         {
+            if (_recordingService.IsDiagnosing) throw new InvalidOperationException("Сначала завершите проверку записи.");
             ApplyFormToSettings();
             RecordingPathService.EnsureOutputDirectory(_settings.OutputDirectory);
             await _settingsStore.SaveAsync(_settings);
@@ -256,6 +264,43 @@ public partial class MainWindow : Window
         });
     }
 
+    private async void DiagnosticsButton_Click(object sender, RoutedEventArgs e)
+    {
+        DiagnosticsButton.IsEnabled = false;
+        try
+        {
+            await RunUiActionAsync(async () =>
+            {
+                if (_recordingService.IsDiagnosing)
+                {
+                    await _recordingService.StopDiagnosticsAsync();
+                    OpenDiagnosticDirectory();
+                    return;
+                }
+                if (System.Windows.MessageBox.Show(this,
+                    "Проверка сохранит экран, отдельный голос и системный звук в папку Diagnostics рядом с клипами. Нужны 3 ГБ свободного места. Ничего не отправляется автоматически.\n\nПереключитесь в игру, играйте и говорите около минуты, затем сохраните replay обычным хоткеем. Через 90 секунд replay остановится. Начать?",
+                    "Диагностика записи", MessageBoxButton.YesNo, MessageBoxImage.Information) != MessageBoxResult.Yes) return;
+                ApplyFormToSettings();
+                await _recordingService.StartDiagnosticsAsync(_settings);
+                _captureNotifications.Show(CaptureNotificationKind.Recording, "Проверка включена", "Экран и отдельный голос сохраняются локально. До 90 секунд.");
+            });
+        }
+        finally { DiagnosticsButton.IsEnabled = true; UpdateUi(); }
+    }
+
+    private void OpenDiagnosticsButton_Click(object sender, RoutedEventArgs e)
+    {
+        try { OpenDiagnosticDirectory(); }
+        catch (Exception error) { ShowError("Не удалось открыть диагностику", error); }
+    }
+
+    private void OpenDiagnosticDirectory()
+    {
+        var path = _recordingService.LastDiagnosticDirectory ?? Path.Combine(_settings.OutputDirectory, "Diagnostics");
+        if (!Directory.Exists(path)) throw new InvalidOperationException("Сначала запустите проверку записи.");
+        Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+    }
+
     private async void Window_Closing(object? sender, CancelEventArgs e)
     {
         if (!_exitRequested)
@@ -276,7 +321,12 @@ public partial class MainWindow : Window
         SetStatus("Завершаю записи…");
         _replayTargetTimer.Stop();
         _hotkeys?.Dispose();
-        await _recordingService.DisposeAsync();
+        try { await _recordingService.DisposeAsync(); }
+        catch (Exception error)
+        {
+            System.Windows.MessageBox.Show(this, "Не удалось корректно завершить одну из записей. Проверьте последний клип.\n" + error.Message,
+                "Завершение CLIPALKA", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
         _captureNotifications.Dispose();
         _trayNotifications.Dispose();
         Closing -= Window_Closing;
@@ -509,6 +559,8 @@ public partial class MainWindow : Window
 
     private void UpdateUi()
     {
+        DiagnosticsButton.Content = _recordingService.IsDiagnosing ? "Остановить проверку" : "Начать проверку (90 секунд)";
+        DisplayComboBox.IsEnabled = FpsComboBox.IsEnabled = OutputDeviceComboBox.IsEnabled = InputDeviceComboBox.IsEnabled = !_recordingService.IsDiagnosing;
         RecordButtonTitle.Text = _recordingService.IsRecording ? "Остановить запись" : "Запись";
         RecordButton.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
             _recordingService.IsRecording ? "#402331" : "#151B27"));
@@ -516,6 +568,7 @@ public partial class MainWindow : Window
         MicrophoneIcon.Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
             _recordingService.IsMicrophoneMuted ? "#F04461" : "#F5F7FC"));
         ReplayStatusText.Text = _recordingService.IsReplayBuffering ? "CLIPALKA работает" : "Replay выключен";
+        if (_recordingService.IsDiagnosing) ReplayStatusText.Text = "● Диагностика включена";
         ReplayStatusDot.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
             _recordingService.IsReplayBuffering ? "#36D399" : "#64748B"));
         ReplaySourceText.Text = !_recordingService.IsReplayBuffering

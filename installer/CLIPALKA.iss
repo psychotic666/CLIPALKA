@@ -1,5 +1,5 @@
 #define MyAppName "CLIPALKA"
-#define MyAppVersion "0.9.1"
+#define MyAppVersion "0.9.2"
 #define MyAppPublisher "CLIPALKA"
 #define MyAppExeName "CLIPALKA.exe"
 

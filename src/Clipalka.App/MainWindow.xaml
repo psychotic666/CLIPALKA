@@ -68,7 +68,7 @@
                                     <TextBlock x:Name="StatusTextBlock" Text="Готов к захвату" Foreground="{StaticResource SubtleBrush}" FontSize="12" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" MaxWidth="170" />
                                 </StackPanel>
                             </StackPanel>
-                            <TextBlock Text="v0.9.1" Foreground="#56647A" FontSize="12" Margin="0,16,0,0" />
+                            <TextBlock Text="v0.9.2 RC1" Foreground="#56647A" FontSize="12" Margin="0,16,0,0" />
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -243,6 +243,13 @@
                                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBox x:Name="OutputPathTextBox" AutomationProperties.Name="Папка для записей" /><Button Grid.Column="1" Content="Обзор" Margin="10,0,0,0" MinWidth="92" Click="BrowseOutputPath_Click" /></Grid>
                                 </StackPanel>
                             </Border>
+                            <Border Style="{StaticResource SettingsPanel}" Margin="0,0,0,14">
+                                <StackPanel>
+                                    <TextBlock Text="Проверка записи и звука" FontSize="18" FontWeight="Bold" />
+                                    <TextBlock Text="Отдельный голос, звук игры, исходное видео и журнал кадров. Файлы сохраняются только на этом компьютере. Проверка останавливает replay примерно через 90 секунд или при достижении 2 ГБ." TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" FontSize="14" Margin="0,10,0,14" />
+                                    <WrapPanel><Button x:Name="DiagnosticsButton" Content="Начать проверку (90 секунд)" Click="DiagnosticsButton_Click" Margin="0,0,12,0" /><Button Content="Открыть папку проверки" Click="OpenDiagnosticsButton_Click" /></WrapPanel>
+                                </StackPanel>
+                            </Border>
                             <Border Style="{StaticResource SettingsPanel}">
                                 <StackPanel>
                                     <TextBlock Text="Поведение захвата" FontSize="15" FontWeight="Bold" Margin="0,0,0,8" />
@@ -269,7 +276,7 @@
                             <Border Style="{StaticResource SettingsPanel}">
                                 <StackPanel>
                                     <TextBlock Text="О приложении" FontSize="15" FontWeight="Bold" />
-                                    <TextBlock Text="CLIPALKA v0.9.1" Foreground="{StaticResource MutedBrush}" FontSize="14" Margin="0,7,0,0" />
+                                    <TextBlock Text="CLIPALKA v0.9.2 RC1" Foreground="{StaticResource MutedBrush}" FontSize="14" Margin="0,7,0,0" />
                                     <TextBlock Text="Игровая запись, replay и звук — без лишнего." Foreground="{StaticResource SubtleBrush}" FontSize="10" Margin="0,4,0,0" />
                                 </StackPanel>
                             </Border>

@@ -15,6 +15,119 @@ public sealed class RecordingService : IAsyncDisposable
     private RecordingSession? _manualSession;
     private RecordingSession? _replaySession;
     private bool _microphoneMuted;
+    private CaptureDiagnosticWriter? _diagnostics;
+    private readonly HashSet<string> _diagnosticFiles = new(StringComparer.OrdinalIgnoreCase);
+    private CancellationTokenSource? _diagnosticStop;
+    private Task _diagnosticLimitTask = Task.CompletedTask;
+    public bool IsDiagnosing => _diagnostics is not null;
+    public string? LastDiagnosticDirectory { get; private set; }
+
+    public async Task StartDiagnosticsAsync(AppSettings settings)
+    {
+        await _gate.WaitAsync();
+        try
+        {
+            if (_diagnostics is not null) return;
+            if (_manualSession is not null) throw new InvalidOperationException("Сначала остановите обычную запись.");
+            var root = RecordingPathService.EnsureOutputDirectory(settings.OutputDirectory);
+            if (new DriveInfo(Path.GetPathRoot(Path.GetFullPath(root))!).AvailableFreeSpace < 3L * 1024 * 1024 * 1024)
+                throw new IOException("Для диагностики нужно не менее 3 ГБ свободного места.");
+            await StopReplayCoreAsync();
+            var path = Path.Combine(root, "Diagnostics", DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + "_" + Guid.NewGuid().ToString("N")[..6]);
+            _diagnostics = new CaptureDiagnosticWriter(path);
+            LastDiagnosticDirectory = path;
+            _diagnosticFiles.Clear();
+            try
+            {
+                await File.WriteAllTextAsync(Path.Combine(path, "README.txt"),
+                    "CLIPALKA diagnostic capture — local files only. Contains private voice and screen recordings. Review before sharing.\n" +
+                    "*-microphone-premix.wav: microphone AFTER SRL resampling/ForceMono/volume, BEFORE mixing and AAC. Not raw Sonar input.\n" +
+                    "*-system-premix.wav: system audio before mixing. *-mix-pre-aac.wav: combined PCM before AAC. PCM16 stereo 48000 Hz.\n" +
+                    "WAV files concatenate callback packets; compare events.jsonl for timing and dropped packets in writer-summary.json.\n" +
+                    "buffer_*.mp4: original recorder segments. snapshot_*.mp4: growing-file snapshot used by export (may be incomplete).\n" +
+                    "Replay*.mp4 / game-named MP4: exported replay. frame timestamps are callback Unix milliseconds, not MP4 PTS.\n" +
+                    "Diagnosis stops replay after 90 seconds or approximately 2 GiB; files are not uploaded or automatically deleted.\n");
+                _diagnostics.Log("diagnostic-start", new { version = typeof(RecordingService).Assembly.GetName().Version?.ToString(),
+                    os = Environment.OSVersion.ToString(), runtime = Environment.Version.ToString(),
+                    settings.FramesPerSecond, settings.ReplaySeconds, settings.InputAudioDeviceId, settings.OutputAudioDeviceId,
+                    settings.MicrophoneVolumePercent, settings.OutputVolumePercent, settings.DisplayDeviceName, microphoneMuted = _microphoneMuted });
+                var target = _captureTargets.Resolve(settings, CapturePurpose.ReplayBuffer);
+                _replaySession = await StartSessionAsync(settings, target, CreateReplayTemporaryPath(), true);
+                _diagnosticStop = new CancellationTokenSource();
+                _diagnosticLimitTask = LimitDiagnosticsAsync(_diagnostics, _diagnosticStop.Token);
+                StatusChanged?.Invoke(this, "Диагностика включена на 90 секунд. Записываются экран и отдельный голос.");
+            }
+            catch
+            {
+                await StopDiagnosticsCoreAsync();
+                throw;
+            }
+        }
+        finally { _gate.Release(); }
+    }
+
+    private async Task LimitDiagnosticsAsync(CaptureDiagnosticWriter writer, CancellationToken token)
+    {
+        var started = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            while (!token.IsCancellationRequested)
+            {
+                await Task.Delay(1000, token).ConfigureAwait(false);
+                var bytes = Directory.EnumerateFiles(writer.DirectoryPath).Sum(file => new FileInfo(file).Length);
+                var free = new DriveInfo(Path.GetPathRoot(writer.DirectoryPath)!).AvailableFreeSpace;
+                if (started.Elapsed >= TimeSpan.FromSeconds(90) || bytes >= 2L * 1024 * 1024 * 1024 || free < 512L * 1024 * 1024 || writer.Error is not null)
+                {
+                    // Stop capture even if a replay export currently holds the service gate.
+                    _replaySession?.RequestStop();
+                    await _gate.WaitAsync(token).ConfigureAwait(false);
+                    try
+                    {
+                        if (ReferenceEquals(_diagnostics, writer)) await StopDiagnosticsCoreAsync();
+                    }
+                    finally { _gate.Release(); }
+                    return;
+                }
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception e)
+        {
+            writer.Log("diagnostic-limit-error", new { error = e.ToString() });
+            // A monitoring failure must stop capture, not silently remove its time limit.
+            await _gate.WaitAsync();
+            try { if (ReferenceEquals(_diagnostics, writer)) await StopDiagnosticsCoreAsync(); }
+            catch (Exception stopError) { StatusChanged?.Invoke(this, "Ошибка завершения диагностики: " + stopError.Message); }
+            finally { _gate.Release(); }
+        }
+    }
+
+    public async Task StopDiagnosticsAsync()
+    {
+        await _gate.WaitAsync();
+        try { await StopDiagnosticsCoreAsync(); }
+        finally { _gate.Release(); }
+    }
+
+    private async Task StopDiagnosticsCoreAsync()
+    {
+        var writer = _diagnostics;
+        if (writer is null) return;
+        _diagnosticStop?.Cancel();
+        _diagnosticStop?.Dispose();
+        _diagnosticStop = null;
+        try { await StopReplayCoreAsync(); }
+        finally
+        {
+            writer.Log("diagnostic-stop", new { });
+            await writer.DisposeAsync();
+            _diagnostics = null;
+            _diagnosticFiles.Clear();
+            StatusChanged?.Invoke(this, writer.Error is null
+                ? "Диагностика завершена; replay выключен. Данные сохранены в папке Diagnostics."
+                : "Диагностика завершена с ошибкой записи данных: " + writer.Error);
+        }
+    }
 
     public RecordingService(ReplayClipExporter replayExporter, CaptureTargetService captureTargets)
     {
@@ -22,8 +135,8 @@ public sealed class RecordingService : IAsyncDisposable
         _captureTargets = captureTargets;
     }
 
-    public bool IsRecording => _manualSession is not null;
-    public bool IsReplayBuffering => _replaySession is not null;
+    public bool IsRecording => _manualSession is { HasFailed: false };
+    public bool IsReplayBuffering => _replaySession is { HasFailed: false };
     public bool IsMicrophoneMuted => _microphoneMuted;
     public string? ReplayCaptureName => _replaySession?.Target.Name;
     public bool IsReplayCapturingApplication => _replaySession?.Target.IsApplication == true;
@@ -35,12 +148,13 @@ public sealed class RecordingService : IAsyncDisposable
         await _gate.WaitAsync();
         try
         {
+            if (_diagnostics is not null) throw new InvalidOperationException("Во время диагностики используйте replay, а не вторую запись.");
             if (_manualSession is not null)
             {
                 var session = _manualSession;
                 _manualSession = null;
-                await session.StopAsync();
-                session.Dispose();
+                try { await session.StopAsync(); }
+                finally { session.Dispose(); }
                 StatusChanged?.Invoke(this, $"Запись сохранена: {session.OutputPath}");
                 return session.OutputPath;
             }
@@ -49,9 +163,7 @@ public sealed class RecordingService : IAsyncDisposable
             var target = _captureTargets.Resolve(settings, CapturePurpose.ManualRecording);
             var captureName = _captureTargets.GetActiveApplicationName() ?? target.Name;
             var path = RecordingPathService.CreateCapturePath(directory, captureName, false);
-            _manualSession = CreateSession(settings, target, path, _microphoneMuted, false);
-            _manualSession.Start();
-            ApplyMicrophoneState(_manualSession);
+            _manualSession = await StartSessionAsync(settings, target, path, false);
             StatusChanged?.Invoke(this, $"Идёт запись: {target.Name}");
             return null;
         }
@@ -73,9 +185,7 @@ public sealed class RecordingService : IAsyncDisposable
 
             var target = _captureTargets.Resolve(settings, CapturePurpose.ReplayBuffer);
             DeleteReplayTemporaryFiles();
-            _replaySession = CreateSession(settings, target, CreateReplayTemporaryPath(), _microphoneMuted, true);
-            _replaySession.Start();
-            ApplyMicrophoneState(_replaySession);
+            _replaySession = await StartSessionAsync(settings, target, CreateReplayTemporaryPath(), true);
             StatusChanged?.Invoke(this, $"Replay-буфер активен: последние {settings.ReplaySeconds} секунд");
         }
         finally
@@ -89,23 +199,23 @@ public sealed class RecordingService : IAsyncDisposable
         await _gate.WaitAsync();
         try
         {
-            if (_replaySession is null)
-            {
-                return;
-            }
-
-            var session = _replaySession;
-            _replaySession = null;
-            await session.StopAsync();
-            session.Dispose();
-            DeleteIfExists(session.OutputPath);
-            ClearCompletedReplaySegments();
+            if (_diagnostics is not null) { await StopDiagnosticsCoreAsync(); return; }
+            await StopReplayCoreAsync();
             StatusChanged?.Invoke(this, "Replay-буфер выключен");
         }
         finally
         {
             _gate.Release();
         }
+    }
+
+    private async Task StopReplayCoreAsync()
+    {
+        var session = _replaySession;
+        _replaySession = null;
+        if (session is null) return;
+        try { await session.StopAsync(); }
+        finally { session.Dispose(); DeleteIfExists(session.OutputPath); ClearCompletedReplaySegments(); }
     }
 
     public async Task RefreshReplayTargetAsync(AppSettings settings)
@@ -119,6 +229,11 @@ public sealed class RecordingService : IAsyncDisposable
             }
 
             var current = _replaySession;
+            if (current.HasFailed)
+            {
+                await StopReplayCoreAsync();
+                return;
+            }
             var currentIsAlive = _captureTargets.IsTargetAlive(current.Target);
             var candidate = _captureTargets.Resolve(settings, CapturePurpose.ReplayBuffer);
             var shouldReplaceTarget = CaptureSelectionPolicy.ShouldReplaceReplayTarget(
@@ -159,7 +274,7 @@ public sealed class RecordingService : IAsyncDisposable
                 throw new InvalidOperationException("Сначала включите replay-буфер.");
             }
 
-            var directory = RecordingPathService.EnsureOutputDirectory(settings.OutputDirectory);
+            var directory = _diagnostics?.DirectoryPath ?? RecordingPathService.EnsureOutputDirectory(settings.OutputDirectory);
             var replayName = _replaySession.Target.Name;
             var outputPath = RecordingPathService.CreateCapturePath(
                 directory, replayName, true);
@@ -169,6 +284,7 @@ public sealed class RecordingService : IAsyncDisposable
             {
                 await CopyGrowingFileSnapshotAsync(_replaySession.OutputPath, snapshotPath);
                 replaySources.Add(snapshotPath);
+                _diagnostics?.Log("export-start", new { sources = replaySources, outputPath });
                 await _replayExporter.ExportLastAsync(
                     replaySources,
                     outputPath,
@@ -176,6 +292,7 @@ public sealed class RecordingService : IAsyncDisposable
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or COMException)
             {
+                _diagnostics?.Log("export-fallback", new { error = exception.ToString() });
                 // Some Windows encoders deny shared reads. Fall back to a fast rollover,
                 // preserving the old session as a finalized replay source.
                 await RotateReplaySessionAsync(settings, _replaySession.Target, keepFinishedSegment: true);
@@ -187,6 +304,7 @@ public sealed class RecordingService : IAsyncDisposable
             }
             finally
             {
+                _diagnostics?.Log("export-finished", new { outputPath, exists = File.Exists(outputPath) });
                 DeleteIfExists(snapshotPath);
             }
 
@@ -202,6 +320,7 @@ public sealed class RecordingService : IAsyncDisposable
     public void SetMicrophoneMuted(bool muted)
     {
         _microphoneMuted = muted;
+        _diagnostics?.Log("microphone-mute", new { muted });
         ApplyMicrophoneState(_manualSession);
         ApplyMicrophoneState(_replaySession);
         StatusChanged?.Invoke(this, muted ? "Микрофон выключен" : "Микрофон включён");
@@ -209,28 +328,32 @@ public sealed class RecordingService : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        if (_manualSession is not null)
+        var failures = new List<Exception>();
+        try { await StopDiagnosticsAsync(); }
+        catch (Exception error) { failures.Add(error); }
+        await _diagnosticLimitTask;
+        await _gate.WaitAsync();
+        try
         {
-            await _manualSession.StopAsync();
-            _manualSession.Dispose();
-            _manualSession = null;
+            if (_manualSession is not null)
+            {
+                try { await _manualSession.StopAsync(); }
+                catch (Exception error) { failures.Add(error); }
+                finally { _manualSession.Dispose(); _manualSession = null; }
+            }
+            try { await StopReplayCoreAsync(); }
+            catch (Exception error) { failures.Add(error); }
+            ClearCompletedReplaySegments();
         }
-
-        if (_replaySession is not null)
+        finally
         {
-            var temporaryPath = _replaySession.OutputPath;
-            await _replaySession.StopAsync();
-            _replaySession.Dispose();
-            _replaySession = null;
-            DeleteIfExists(temporaryPath);
+            _gate.Release();
+            _gate.Dispose();
         }
-
-        ClearCompletedReplaySegments();
-
-        _gate.Dispose();
+        if (failures.Count > 0) throw new AggregateException("Не все записи завершены корректно.", failures);
     }
 
-    private static RecordingSession CreateSession(
+    private RecordingSession CreateSession(
         AppSettings settings,
         CaptureTarget target,
         string outputPath,
@@ -245,7 +368,9 @@ public sealed class RecordingService : IAsyncDisposable
             : new CaptureAudioSource(settings.InputAudioDeviceId);
         if (microphone is not null)
         {
-            microphone.ForceMono = true;
+            // Preserve the device's channels. SRL already converts its input to the stereo output format.
+            // Forcing a second mono conversion is unnecessary for Sonar and can mis-handle mono inputs.
+            microphone.ForceMono = false;
             microphone.Volume = microphoneMuted ? 0f : VolumeFromPercent(settings.MicrophoneVolumePercent);
         }
 
@@ -258,7 +383,8 @@ public sealed class RecordingService : IAsyncDisposable
         {
             IsAudioEnabled = true,
             Bitrate = AudioBitrate.bitrate_192kbps,
-            Channels = AudioChannels.Stereo
+            Channels = AudioChannels.Stereo,
+            IsAudioPacketPreviewEnabled = _diagnostics is not null
         };
 
         if (outputAudio is not null)
@@ -294,16 +420,48 @@ public sealed class RecordingService : IAsyncDisposable
             },
             OutputOptions = new OutputOptions { RecorderMode = RecorderMode.Video },
             MouseOptions = new MouseOptions { IsMousePointerEnabled = true },
-            LogOptions = new LogOptions { IsLogEnabled = false }
+            LogOptions = _diagnostics is null ? new LogOptions { IsLogEnabled = false } : new LogOptions
+            {
+                IsLogEnabled = true, LogSeverityLevel = LogLevel.Debug,
+                LogFilePath = Path.Combine(_diagnostics.DirectoryPath, "native-recorder.log")
+            }
         };
         options.SourceOptions.RecordingSources.Add(target.Source);
 
+        var recorder = Recorder.CreateRecorder(options);
+        var probe = _diagnostics is null ? null : new RecorderDiagnosticProbe(recorder, _diagnostics,
+            Path.GetFileNameWithoutExtension(outputPath), microphone?.ID, outputAudio?.ID);
+        _diagnostics?.Log("session-created", new { outputPath, target = target.Name, target.IsApplication,
+            microphoneId = microphone?.ID, outputId = outputAudio?.ID, microphoneDevice = microphone?.DeviceName,
+            outputDevice = outputAudio?.DeviceName, forceMono = microphone?.ForceMono, settings.FramesPerSecond,
+            requestedBitrate = RecordingQualityProfile.VideoBitrateFor(settings.FramesPerSecond) });
         return new RecordingSession(
-            Recorder.CreateRecorder(options),
+            recorder,
             microphone,
             outputPath,
             target,
-            VolumeFromPercent(settings.MicrophoneVolumePercent));
+            VolumeFromPercent(settings.MicrophoneVolumePercent), probe, _diagnostics,
+            error => StatusChanged?.Invoke(this, "Ошибка захвата: " + error));
+    }
+
+    private async Task<RecordingSession> StartSessionAsync(AppSettings settings, CaptureTarget target, string path, bool replay)
+    {
+        var session = CreateSession(settings, target, path, _microphoneMuted, replay);
+        try
+        {
+            session.Start();
+            ApplyMicrophoneState(session);
+            await session.WaitForFirstFrameAsync();
+            _diagnostics?.Log("first-frame-ready", new { path });
+            return session;
+        }
+        catch
+        {
+            try { await session.StopAsync(); }
+            catch (Exception e) { _diagnostics?.Log("failed-start-stop", new { path, error = e.Message }); }
+            finally { session.Dispose(); }
+            throw;
+        }
     }
 
     private void ApplyMicrophoneState(RecordingSession? session)
@@ -319,20 +477,24 @@ public sealed class RecordingService : IAsyncDisposable
             .Apply();
     }
 
-    private static string CreateReplayTemporaryPath()
+    private string CreateReplayTemporaryPath()
     {
-        var directory = Path.Combine(Path.GetTempPath(), "CLIPALKA", "Replay");
+        var directory = _diagnostics?.DirectoryPath ?? Path.Combine(Path.GetTempPath(), "CLIPALKA", "Replay");
         Directory.CreateDirectory(directory);
-        return Path.Combine(directory, $"buffer_{Guid.NewGuid():N}.mp4");
+        var path = Path.Combine(directory, $"buffer_{Guid.NewGuid():N}.mp4");
+        if (_diagnostics is not null) _diagnosticFiles.Add(path);
+        return path;
     }
 
     private static float VolumeFromPercent(int value) => Math.Clamp(value, 0, 100) / 100f;
 
-    private static string CreateReplaySnapshotPath()
+    private string CreateReplaySnapshotPath()
     {
-        var directory = Path.Combine(Path.GetTempPath(), "CLIPALKA", "Replay");
+        var directory = _diagnostics?.DirectoryPath ?? Path.Combine(Path.GetTempPath(), "CLIPALKA", "Replay");
         Directory.CreateDirectory(directory);
-        return Path.Combine(directory, $"snapshot_{Guid.NewGuid():N}.mp4");
+        var path = Path.Combine(directory, $"snapshot_{Guid.NewGuid():N}.mp4");
+        if (_diagnostics is not null) _diagnosticFiles.Add(path);
+        return path;
     }
 
     private async Task RotateReplaySessionAsync(
@@ -341,9 +503,9 @@ public sealed class RecordingService : IAsyncDisposable
         bool keepFinishedSegment)
     {
         var current = _replaySession;
-        var next = CreateSession(settings, target, CreateReplayTemporaryPath(), _microphoneMuted, true);
-        next.Start();
-        ApplyMicrophoneState(next);
+        _diagnostics?.Log("rotation-start", new { previous = current?.OutputPath, target = target.Name });
+        // Keep the previous recording alive until the replacement has actually encoded its first frame.
+        var next = await StartSessionAsync(settings, target, CreateReplayTemporaryPath(), true);
         _replaySession = next;
 
         if (current is null)
@@ -352,8 +514,9 @@ public sealed class RecordingService : IAsyncDisposable
         }
 
         await Task.Delay(ReplaySegmentOverlap);
-        await current.StopAsync();
-        current.Dispose();
+        try { await current.StopAsync(); }
+        finally { current.Dispose(); }
+        _diagnostics?.Log("rotation-finished", new { previous = current.OutputPath, next = next.OutputPath });
         if (keepFinishedSegment)
         {
             _completedReplaySegments.Enqueue(new CompletedReplaySegment(current.OutputPath, DateTimeOffset.UtcNow));
@@ -413,7 +576,7 @@ public sealed class RecordingService : IAsyncDisposable
         }
     }
 
-    private static void DeleteReplayTemporaryFiles()
+    private void DeleteReplayTemporaryFiles()
     {
         var directory = Path.Combine(Path.GetTempPath(), "CLIPALKA", "Replay");
         if (!Directory.Exists(directory))
@@ -431,8 +594,9 @@ public sealed class RecordingService : IAsyncDisposable
         }
     }
 
-    private static void DeleteIfExists(string path)
+    private void DeleteIfExists(string path)
     {
+        if (_diagnosticFiles.Contains(path)) return;
         try
         {
             if (File.Exists(path))
@@ -449,22 +613,34 @@ public sealed class RecordingService : IAsyncDisposable
     private sealed class RecordingSession : IDisposable
     {
         private readonly TaskCompletionSource _stopped = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly CaptureStartSignal _firstFrame = new();
+        private readonly object _lifetime = new();
+        private bool _stopRequested;
+        private bool _disposed;
+        private string? _failure;
+        private readonly Action<string> _failureCallback;
+        public bool HasFailed => Volatile.Read(ref _failure) is not null;
         private bool _started;
+        private readonly RecorderDiagnosticProbe? _probe;
+        private readonly CaptureDiagnosticWriter? _diagnostics;
 
         public RecordingSession(
             Recorder recorder,
             CaptureAudioSource? microphone,
             string outputPath,
             CaptureTarget target,
-            float microphoneVolume)
+            float microphoneVolume, RecorderDiagnosticProbe? probe, CaptureDiagnosticWriter? diagnostics, Action<string> failureCallback)
         {
             Recorder = recorder;
             Microphone = microphone;
             OutputPath = outputPath;
             Target = target;
             MicrophoneVolume = microphoneVolume;
+            _probe = probe; _diagnostics = diagnostics;
+            _failureCallback = failureCallback;
             Recorder.OnRecordingComplete += OnRecordingComplete;
             Recorder.OnRecordingFailed += OnRecordingFailed;
+            Recorder.OnFrameRecorded += OnFirstFrame;
         }
 
         public Recorder Recorder { get; }
@@ -476,7 +652,9 @@ public sealed class RecordingService : IAsyncDisposable
 
         public void Start()
         {
+            _diagnostics?.Log("record-call", new { OutputPath });
             Recorder.Record(OutputPath);
+            _diagnostics?.Log("record-return", new { OutputPath });
             StartedAtUtc = DateTimeOffset.UtcNow;
             _started = true;
         }
@@ -488,23 +666,55 @@ public sealed class RecordingService : IAsyncDisposable
                 return;
             }
 
-            Recorder.Stop();
+            RequestStop();
+            _diagnostics?.Log("stop-call", new { OutputPath });
             await _stopped.Task.WaitAsync(TimeSpan.FromSeconds(15));
             _started = false;
+            if (_failure is not null) throw new InvalidOperationException(_failure);
         }
+
+        public void RequestStop()
+        {
+            lock (_lifetime)
+            {
+                if (_disposed || _stopRequested || !_started) return;
+                _stopRequested = true;
+                Recorder.Stop();
+            }
+        }
+
+        public Task WaitForFirstFrameAsync() => _firstFrame.WaitAsync(TimeSpan.FromSeconds(8));
+
+        private void OnFirstFrame(object? sender, FrameRecordedEventArgs e) => _firstFrame.FrameArrived();
 
         public void Dispose()
         {
-            Recorder.OnRecordingComplete -= OnRecordingComplete;
-            Recorder.OnRecordingFailed -= OnRecordingFailed;
-            Recorder.Dispose();
+            lock (_lifetime)
+            {
+                if (_disposed) return;
+                _disposed = true;
+                Recorder.OnRecordingComplete -= OnRecordingComplete;
+                Recorder.OnRecordingFailed -= OnRecordingFailed;
+                Recorder.OnFrameRecorded -= OnFirstFrame;
+                _probe?.Dispose();
+                Recorder.Dispose();
+            }
         }
 
-        private void OnRecordingComplete(object? sender, RecordingCompleteEventArgs eventArgs) =>
+        private void OnRecordingComplete(object? sender, RecordingCompleteEventArgs eventArgs)
+        {
+            _firstFrame.Stopped();
             _stopped.TrySetResult();
+        }
 
-        private void OnRecordingFailed(object? sender, RecordingFailedEventArgs eventArgs) =>
-            _stopped.TrySetException(new InvalidOperationException(eventArgs.Error));
+        private void OnRecordingFailed(object? sender, RecordingFailedEventArgs eventArgs)
+        {
+            Volatile.Write(ref _failure, eventArgs.Error);
+            _firstFrame.Stopped(eventArgs.Error);
+            _stopped.TrySetResult();
+            // Do not block the native recording callback while the UI may be disposing the recorder.
+            _ = Task.Run(() => _failureCallback(eventArgs.Error));
+        }
     }
 
     private sealed record CompletedReplaySegment(string Path, DateTimeOffset FinishedAtUtc);
