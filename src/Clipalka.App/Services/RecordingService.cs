@@ -404,7 +404,7 @@ public sealed class RecordingService : IAsyncDisposable
             VideoEncoderOptions = new VideoEncoderOptions
             {
                 Framerate = settings.FramesPerSecond,
-                IsFixedFramerate = true,
+                IsFixedFramerate = RecordingQualityProfile.UseFixedFramerate,
                 IsLowLatencyEnabled = false,
                 IsThrottlingDisabled = false,
                 IsHardwareEncodingEnabled = true,
@@ -419,7 +419,10 @@ public sealed class RecordingService : IAsyncDisposable
                 IsFragmentedMp4Enabled = isReplayBuffer
             },
             OutputOptions = new OutputOptions { RecorderMode = RecorderMode.Video },
-            MouseOptions = new MouseOptions { IsMousePointerEnabled = true },
+            MouseOptions = new MouseOptions
+            {
+                IsMousePointerEnabled = RecordingQualityProfile.CaptureMousePointer
+            },
             LogOptions = _diagnostics is null ? new LogOptions { IsLogEnabled = false } : new LogOptions
             {
                 IsLogEnabled = true, LogSeverityLevel = LogLevel.Debug,

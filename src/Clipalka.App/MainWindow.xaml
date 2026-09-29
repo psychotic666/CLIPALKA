@@ -68,7 +68,7 @@
                                     <TextBlock x:Name="StatusTextBlock" Text="Готов к захвату" Foreground="{StaticResource SubtleBrush}" FontSize="12" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" MaxWidth="170" />
                                 </StackPanel>
                             </StackPanel>
-                            <TextBlock Text="v0.9.2 RC1" Foreground="#56647A" FontSize="12" Margin="0,16,0,0" />
+                            <TextBlock Text="v0.9.2 RC2" Foreground="#56647A" FontSize="12" Margin="0,16,0,0" />
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -276,7 +276,7 @@
                             <Border Style="{StaticResource SettingsPanel}">
                                 <StackPanel>
                                     <TextBlock Text="О приложении" FontSize="15" FontWeight="Bold" />
-                                    <TextBlock Text="CLIPALKA v0.9.2 RC1" Foreground="{StaticResource MutedBrush}" FontSize="14" Margin="0,7,0,0" />
+                                    <TextBlock Text="CLIPALKA v0.9.2 RC2" Foreground="{StaticResource MutedBrush}" FontSize="14" Margin="0,7,0,0" />
                                     <TextBlock Text="Игровая запись, replay и звук — без лишнего." Foreground="{StaticResource SubtleBrush}" FontSize="10" Margin="0,4,0,0" />
                                 </StackPanel>
                             </Border>

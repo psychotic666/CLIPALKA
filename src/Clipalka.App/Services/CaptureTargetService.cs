@@ -34,7 +34,7 @@ public sealed class CaptureTargetService
             var source = new WindowRecordingSource(window)
             {
                 IsBorderRequired = false,
-                IsCursorCaptureEnabled = true
+                IsCursorCaptureEnabled = RecordingQualityProfile.CaptureMousePointer
             };
             return new CaptureTarget(source, name, true, window);
         }
@@ -49,7 +49,7 @@ public sealed class CaptureTargetService
 
         display.RecorderApi = RecorderApi.WindowsGraphicsCapture;
         display.IsBorderRequired = false;
-        display.IsCursorCaptureEnabled = true;
+        display.IsCursorCaptureEnabled = RecordingQualityProfile.CaptureMousePointer;
         var displayName = Recorder.GetDisplays()
             .FirstOrDefault(candidate => candidate.DeviceName == display.DeviceName)?.FriendlyName;
         return new CaptureTarget(display, string.IsNullOrWhiteSpace(displayName) ? "Экран" : displayName, false);
@@ -66,7 +66,7 @@ public sealed class CaptureTargetService
             var source = new WindowRecordingSource(previousTarget.WindowHandle)
             {
                 IsBorderRequired = false,
-                IsCursorCaptureEnabled = true
+                IsCursorCaptureEnabled = RecordingQualityProfile.CaptureMousePointer
             };
             return new CaptureTarget(
                 source,
