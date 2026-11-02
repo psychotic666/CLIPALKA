@@ -689,15 +689,17 @@ public partial class MainWindow : Window
         MicrophoneIcon.Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
             _recordingService.IsMicrophoneMuted ? "#F04461" : "#F5F7FC"));
         ReplayStatusText.Text = _recordingService.IsReplayBuffering ? "CLIPALKA работает" : "Replay выключен";
+        if (recording) ReplayStatusText.Text = "Идёт запись";
         if (_recordingService.IsDiagnosing) ReplayStatusText.Text = "● Диагностика включена";
         ReplayStatusDot.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
-            _recordingService.IsReplayBuffering ? "#36D399" : "#64748B"));
-        ReplaySourceText.Text = !_recordingService.IsReplayBuffering
+            recording ? "#FF506C" : _recordingService.IsReplayBuffering ? "#36D399" : "#64748B"));
+        ReplaySourceText.Text = recording ? _recordingService.RecordingCaptureName ?? "Запись"
+            : !_recordingService.IsReplayBuffering
             ? "Источник не выбран"
             : _recordingService.ReplayCaptureName ?? "Источник определяется";
         CaptureStateText.Text = recording ? "Идёт запись · " + _recordingService.RecordingCaptureName : _recordingService.IsReplayBuffering ? "Захват активен" : "Ожидание захвата";
         CaptureStateText.Foreground = CaptureStateDot.Fill = (Brush)FindResource(recording ? "DangerBrush" : _recordingService.IsReplayBuffering ? "SuccessBrush" : "SubtleBrush");
-        CaptureDescriptionText.Text = !_recordingService.IsReplayBuffering ? "Replay-буфер выключен" : _recordingService.IsReplayCapturingApplication ? "Игра запущена и отслеживается" : "Записывается выбранный монитор";
+        CaptureDescriptionText.Text = recording ? "Нажми квадрат, чтобы остановить и сохранить" : !_recordingService.IsReplayBuffering ? "Replay-буфер выключен" : _recordingService.IsReplayCapturingApplication ? "Игра запущена и отслеживается" : "Записывается выбранный монитор";
         ReplayButton.IsEnabled = _recordingService.IsReplayBuffering && !_isBusy;
         RecordHotkeyHint.Text = string.IsNullOrWhiteSpace(_settings.RecordHotkey) ? "Хоткей выключен" : _settings.RecordHotkey.Replace("+", " + ");
         ReplayHotkeyHint.Text = string.IsNullOrWhiteSpace(_settings.ReplayHotkey) ? "Хоткей выключен" : _settings.ReplayHotkey.Replace("+", " + ");
