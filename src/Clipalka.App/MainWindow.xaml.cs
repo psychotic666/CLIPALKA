@@ -48,11 +48,19 @@ public partial class MainWindow : Window
             ("ui-1280", new Size(1280, 800), "home"),
             ("ui-gallery", new Size(1280, 800), "gallery"),
             ("ui-diagnostics", new Size(1280, 800), "diagnostics"),
-            ("ui-empty", new Size(1280, 800), "empty")
+            ("ui-empty", new Size(1280, 800), "empty"),
+            ("ui-controller", new Size(1280, 800), "controller")
         })
         {
-            ShowPage(page == "gallery" ? AudioPage : page == "diagnostics" ? VideoPage : DashboardPage,
-                page == "gallery" ? ClipsNavButton : page == "diagnostics" ? VideoNavButton : DashboardNavButton);
+            ShowPage(page == "controller" ? HotkeysPage : page == "gallery" ? AudioPage : page == "diagnostics" ? VideoPage : DashboardPage,
+                page == "controller" ? HotkeysNavButton : page == "gallery" ? ClipsNavButton : page == "diagnostics" ? VideoNavButton : DashboardNavButton);
+            if (page == "controller")
+            {
+                ControllerComboBox.ItemsSource = new[] { new ControllerDevice("test", "Wireless Controller (DualSense)"), new ControllerDevice("test-flydigi", "Flydigi (XInput)") };
+                ControllerComboBox.SelectedIndex = 0;
+                ControllerBindingText.Text = "Wireless Controller · Create + R1";
+                ControllerStatusText.Text = "Пример назначенного сочетания · удержание 0,4 с";
+            }
             if (page == "empty")
             {
                 CapturePreviewImage.Source = null;
@@ -103,6 +111,10 @@ public partial class MainWindow : Window
     private IReadOnlyList<RecentClipItem> _galleryClips = [];
     private bool _formReady;
     private bool _settingsDirty;
+    private ControllerHotkeyService? _controllerHotkeys;
+    private ControllerBinding? _pendingControllerBinding;
+    private long _controllerPermissionCheckedAt;
+    private bool _controllerGameActive;
 
     public MainWindow()
     {
@@ -164,6 +176,7 @@ public partial class MainWindow : Window
             await LoadRecentClipsAsync();
             _hotkeys = new GlobalHotkeyService();
             RegisterHotkeys();
+            InitializeControllerHotkeys();
 
             if (_settings.StartReplayBufferWithApp)
             {
@@ -283,6 +296,7 @@ public partial class MainWindow : Window
         await RunUiActionAsync(async () =>
         {
             if (_recordingService.IsDiagnosing) throw new InvalidOperationException("Сначала завершите проверку записи.");
+            if (_controllerHotkeys?.IsLearning == true) throw new InvalidOperationException("Сначала отпусти кнопки или отмени назначение контроллера.");
             if (_recordingService.IsRecording) throw new InvalidOperationException("Остановите запись перед изменением настроек.");
             ApplyFormToSettings();
             RecordingPathService.EnsureOutputDirectory(_settings.OutputDirectory);
@@ -366,6 +380,7 @@ public partial class MainWindow : Window
         SetStatus("Завершаю записи…");
         _replayTargetTimer.Stop();
         _hotkeys?.Dispose();
+        _controllerHotkeys?.Dispose();
         try { await _recordingService.DisposeAsync(); }
         catch (Exception error)
         {
@@ -577,6 +592,8 @@ public partial class MainWindow : Window
         ReplayHotkeyTextBox.Text = _settings.ReplayHotkey;
         MicrophoneHotkeyTextBox.Text = _settings.MicrophoneHotkey;
         GalleryHotkeyTextBox.Text = _settings.GalleryHotkey;
+        _pendingControllerBinding = _settings.ReplayControllerBinding;
+        UpdateControllerBindingText();
         StartReplayCheckBox.IsChecked = _settings.StartReplayBufferWithApp;
         AutoGameCheckBox.IsChecked = _settings.AutoCaptureGame;
         GameOnlyHotkeysCheckBox.IsChecked = _settings.HotkeysOnlyWhileGameActive;
@@ -619,6 +636,7 @@ public partial class MainWindow : Window
         _settings.ReplayHotkey = ReplayHotkeyTextBox.Text.Trim();
         _settings.MicrophoneHotkey = MicrophoneHotkeyTextBox.Text.Trim();
         _settings.GalleryHotkey = GalleryHotkeyTextBox.Text.Trim();
+        _settings.ReplayControllerBinding = _pendingControllerBinding;
         _settings.StartReplayBufferWithApp = StartReplayCheckBox.IsChecked == true;
         _settings.AutoCaptureGame = AutoGameCheckBox.IsChecked == true;
         _settings.HotkeysOnlyWhileGameActive = GameOnlyHotkeysCheckBox.IsChecked == true;
@@ -644,6 +662,7 @@ public partial class MainWindow : Window
         {
             return;
         }
+        _controllerHotkeys?.Configure(_settings.ReplayControllerBinding);
 
         HotkeyBinding.TryParse(_settings.RecordHotkey, out var recordBinding);
         HotkeyBinding.TryParse(_settings.ReplayHotkey, out var replayBinding);
@@ -672,7 +691,9 @@ public partial class MainWindow : Window
         SaveAllSettingsButton.BorderBrush = (Brush)FindResource(_settingsDirty ? "AccentHoverBrush" : "BorderBrush");
         var recording = _recordingService.IsRecording;
         RecordButton.IsEnabled = !_isBusy && !_recordingService.IsDiagnosing;
-        SaveAllSettingsButton.IsEnabled = !_isBusy && !recording && !_recordingService.IsDiagnosing;
+        SaveAllSettingsButton.IsEnabled = !_isBusy && !recording && !_recordingService.IsDiagnosing && _controllerHotkeys?.IsLearning != true;
+        LearnControllerButton.Content = _controllerHotkeys?.IsLearning == true ? "Отменить назначение" : "Назначить сочетание";
+        ControllerComboBox.IsEnabled = _controllerHotkeys?.IsLearning != true;
         ToggleReplayButton.IsEnabled = !_isBusy;
         ToggleReplayButton.Content = _recordingService.IsReplayBuffering ? "Остановить replay" : "Включить replay";
         CaptureQualityText.Text = $"H.264  •  {_settings.FramesPerSecond} FPS  •  Stereo";
@@ -803,6 +824,81 @@ public partial class MainWindow : Window
     private bool IsEditingHotkey() => IsActive &&
         (RecordHotkeyTextBox.IsKeyboardFocusWithin || ReplayHotkeyTextBox.IsKeyboardFocusWithin ||
          MicrophoneHotkeyTextBox.IsKeyboardFocusWithin || GalleryHotkeyTextBox.IsKeyboardFocusWithin);
+
+    private void InitializeControllerHotkeys()
+    {
+        // Controller failures must not prevent screen/audio capture from starting.
+        try
+        {
+            _controllerHotkeys = new ControllerHotkeyService(Dispatcher, CanExecuteControllerHotkey,
+                () => Dispatcher.BeginInvoke(new Action(() => _ = SaveReplayAsync())));
+            _controllerHotkeys.DevicesChanged += devices =>
+            {
+                var selected = ControllerComboBox.SelectedValue as string ?? _pendingControllerBinding?.DeviceId;
+                ControllerComboBox.ItemsSource = devices;
+                ControllerComboBox.SelectedValue = selected;
+                if (ControllerComboBox.SelectedIndex < 0 && devices.Count > 0) ControllerComboBox.SelectedIndex = 0;
+            };
+            _controllerHotkeys.StatusChanged += text =>
+            {
+                ControllerStatusText.Text = text;
+                LearnControllerButton.Content = _controllerHotkeys.IsLearning ? "Отменить назначение" : "Назначить сочетание";
+                ControllerComboBox.IsEnabled = !_controllerHotkeys.IsLearning;
+                SaveAllSettingsButton.IsEnabled = !_controllerHotkeys.IsLearning && !_isBusy && !_recordingService.IsRecording && !_recordingService.IsDiagnosing;
+            };
+            _controllerHotkeys.BindingCaptured += binding =>
+            {
+                _pendingControllerBinding = binding;
+                UpdateControllerBindingText();
+                SettingsFieldChanged(this, new RoutedEventArgs());
+            };
+            _controllerHotkeys.Configure(_settings.ReplayControllerBinding);
+            _controllerHotkeys.RefreshDevices();
+        }
+        catch (Exception error)
+        {
+            _controllerHotkeys?.Dispose();
+            _controllerHotkeys = null;
+            ControllerStatusText.Text = "Контроллер недоступен: " + error.Message;
+        }
+    }
+
+    private bool CanExecuteControllerHotkey()
+    {
+        if (_isClosing || _isBusy || !_recordingService.IsReplayBuffering || IsEditingHotkey()) return false;
+        if (!_settings.HotkeysOnlyWhileGameActive) return true;
+        var now = Stopwatch.GetTimestamp();
+        if (now - _controllerPermissionCheckedAt >= Stopwatch.Frequency / 5)
+        {
+            _controllerPermissionCheckedAt = now;
+            _controllerGameActive = _captureTargets.IsLikelyGameActive();
+        }
+        return _controllerGameActive;
+    }
+
+    private void LearnControllerButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_controllerHotkeys is null) InitializeControllerHotkeys();
+        if (_controllerHotkeys is null) return;
+        if (_controllerHotkeys.IsLearning) { _controllerHotkeys.CancelLearning(); UpdateUi(); return; }
+        try
+        {
+            if (ControllerComboBox.SelectedValue is not string id) throw new InvalidOperationException("Подключи контроллер и выбери его в списке.");
+            _controllerHotkeys.StartLearning(id);
+        }
+        catch (Exception error) { ShowError("Не удалось назначить кнопки", error); }
+    }
+
+    private void ClearControllerButton_Click(object sender, RoutedEventArgs e)
+    {
+        _controllerHotkeys?.CancelLearning();
+        _pendingControllerBinding = null;
+        UpdateControllerBindingText();
+        SettingsFieldChanged(this, new RoutedEventArgs());
+    }
+
+    private void UpdateControllerBindingText() => ControllerBindingText.Text = _pendingControllerBinding is null
+        ? "Не назначено" : _pendingControllerBinding.DeviceName + " · " + _pendingControllerBinding.Label;
 
     private static void ValidateHotkey(string value, string purpose)
     {

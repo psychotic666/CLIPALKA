@@ -291,6 +291,17 @@
                             <TextBlock Text="Точное управление CLIPALKA во время игры." Foreground="{StaticResource MutedBrush}" FontSize="13" Margin="0,5,0,22" />
                             <Border Style="{StaticResource SettingsPanel}" Margin="0,0,0,14">
                                 <StackPanel>
+                                    <TextBlock Text="Replay с контроллера" FontSize="19" FontWeight="Bold" />
+                                    <TextBlock Text="DualSense по Bluetooth / USB, Flydigi и другие контроллеры Windows. Выбери устройство, нажми «Назначить» и введи сочетание кнопками геймпада." TextWrapping="Wrap" FontSize="14" Foreground="{StaticResource MutedBrush}" Margin="0,10,0,16" />
+                                    <ComboBox x:Name="ControllerComboBox" DisplayMemberPath="Name" SelectedValuePath="Id" AutomationProperties.Name="Контроллер для replay" MinWidth="400" />
+                                    <TextBlock x:Name="ControllerStatusText" Text="Подключи контроллер, чтобы назначить сочетание" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" FontSize="13" Margin="0,10,0,16" />
+                                    <Border Background="{StaticResource InputBrush}" CornerRadius="8" Padding="16,12"><TextBlock x:Name="ControllerBindingText" Text="Не назначено" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" /></Border>
+                                    <WrapPanel Margin="0,14,0,0"><Button x:Name="LearnControllerButton" Content="Назначить сочетание" Click="LearnControllerButton_Click" Margin="0,0,12,0" /><Button Content="Отключить" Click="ClearControllerButton_Click" /></WrapPanel>
+                                    <TextBlock Text="Удерживай сочетание 0,4 секунды — сохранится один replay. После срабатывания отпусти все кнопки. Назначение вступает в силу после сохранения настроек. Аналоговые оси не назначаются; отдельные задние кнопки доступны только если их передаёт драйвер." TextWrapping="Wrap" FontSize="13" Foreground="{StaticResource MutedBrush}" Margin="0,14,0,0" />
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource SettingsPanel}" Margin="0,0,0,14">
+                                <StackPanel>
                                     <TextBlock Text="Хоткеи" FontSize="15" FontWeight="Bold" />
                                     <TextBlock Text="Кликни поле на главной странице и нажми сочетание. Названия клавиш остаются на английском." Foreground="{StaticResource MutedBrush}" FontSize="10" Margin="0,5,0,12" />
                                     <CheckBox x:Name="GameOnlyHotkeysCheckBox" Style="{StaticResource ToggleCheckBox}" Content="Разрешать хоткеи только когда активна игра" IsChecked="True" />

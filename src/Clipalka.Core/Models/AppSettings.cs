@@ -16,6 +16,7 @@ public sealed class AppSettings
     public string ReplayHotkey { get; set; } = "Ctrl+Shift+Z";
     public string MicrophoneHotkey { get; set; } = "Shift+X";
     public string GalleryHotkey { get; set; } = "Ctrl+G";
+    public ControllerBinding? ReplayControllerBinding { get; set; }
     public bool StartReplayBufferWithApp { get; set; } = true;
     public bool AutoCaptureGame { get; set; } = true;
     public bool HotkeysOnlyWhileGameActive { get; set; } = true;

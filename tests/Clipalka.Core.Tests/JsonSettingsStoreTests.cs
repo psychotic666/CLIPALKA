@@ -23,7 +23,12 @@ public sealed class JsonSettingsStoreTests : IDisposable
             RecordHotkey = string.Empty,
             ReplayHotkey = "Shift+Z",
             MicrophoneHotkey = "Shift+X",
-            GalleryHotkey = "Ctrl+G"
+            GalleryHotkey = "Ctrl+G",
+            ReplayControllerBinding = new ControllerBinding
+            {
+                DeviceId = "bluetooth-controller-id", DeviceName = "Wireless Controller",
+                Inputs = [5, 8], Label = "R1 + Create"
+            }
         };
 
         await store.SaveAsync(expected);
@@ -39,6 +44,10 @@ public sealed class JsonSettingsStoreTests : IDisposable
         Assert.Equal(expected.ReplayHotkey, actual.ReplayHotkey);
         Assert.Equal(expected.MicrophoneHotkey, actual.MicrophoneHotkey);
         Assert.Equal(expected.GalleryHotkey, actual.GalleryHotkey);
+        Assert.NotNull(actual.ReplayControllerBinding);
+        Assert.Equal(expected.ReplayControllerBinding.DeviceId, actual.ReplayControllerBinding.DeviceId);
+        Assert.Equal(expected.ReplayControllerBinding.Inputs, actual.ReplayControllerBinding.Inputs);
+        Assert.Equal(expected.ReplayControllerBinding.Label, actual.ReplayControllerBinding.Label);
     }
 
     [Fact]
@@ -52,6 +61,18 @@ public sealed class JsonSettingsStoreTests : IDisposable
 
         Assert.Equal(60, actual.FramesPerSecond);
         Assert.Equal("Ctrl+Shift+Z", actual.ReplayHotkey);
+        Assert.Null(actual.ReplayControllerBinding);
+    }
+
+    [Fact]
+    public async Task LoadAsync_LegacySettings_DoNotEnableControllerHotkey()
+    {
+        Directory.CreateDirectory(_directory);
+        var path = Path.Combine(_directory, "legacy.json");
+        await File.WriteAllTextAsync(path, "{\"FramesPerSecond\":120,\"ReplayHotkey\":\"Shift+Z\"}");
+        var settings = await new JsonSettingsStore(path).LoadAsync();
+        Assert.Null(settings.ReplayControllerBinding);
+        Assert.Equal("Shift+Z", settings.ReplayHotkey);
     }
 
     public void Dispose()
