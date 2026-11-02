@@ -46,7 +46,8 @@ public static class ReplayExportVerification
         var rejected = false;
         try { await exporter.ExportLastAsync(source.Path, existing, TimeSpan.FromSeconds(1)); }
         catch (Exception) { rejected = true; }
-        if (!rejected || !original.SequenceEqual(await File.ReadAllBytesAsync(existing)) ||
+        var afterRejectedExport = await File.ReadAllBytesAsync(existing);
+        if (!rejected || !original.SequenceEqual(afterRejectedExport) ||
             Directory.EnumerateFiles(directory, ".render-*.mp4").Any())
             throw new InvalidOperationException("Export overwrite protection or temporary cleanup failed.");
         await File.WriteAllTextAsync(Path.Combine(directory, "result.txt"),
