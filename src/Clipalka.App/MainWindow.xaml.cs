@@ -650,19 +650,19 @@ public partial class MainWindow : Window
         _hotkeys.Register(
             RecordHotkeyId,
             recordBinding,
-            () => _ = ToggleRecordingAsync(),
+            () => Dispatcher.BeginInvoke(new Action(() => _ = ToggleRecordingAsync())),
             CanExecuteGlobalHotkey);
         _hotkeys.Register(
             ReplayHotkeyId,
             replayBinding,
-            () => _ = SaveReplayAsync(),
+            () => Dispatcher.BeginInvoke(new Action(() => _ = SaveReplayAsync())),
             CanExecuteGlobalHotkey);
         HotkeyBinding.TryParse(_settings.MicrophoneHotkey, out var microphoneBinding);
         HotkeyBinding.TryParse(_settings.GalleryHotkey, out var galleryBinding);
         _hotkeys.Register(MicrophoneHotkeyId, microphoneBinding,
-            () => MicrophoneButton_Click(this, new RoutedEventArgs()), CanExecuteGlobalHotkey);
+            () => Dispatcher.BeginInvoke(new Action(() => MicrophoneButton_Click(this, new RoutedEventArgs()))), CanExecuteGlobalHotkey);
         _hotkeys.Register(GalleryHotkeyId, galleryBinding,
-            () => { RestoreFromTray(); ClipsNavButton_Click(this, new RoutedEventArgs()); },
+            () => Dispatcher.BeginInvoke(new Action(() => { RestoreFromTray(); ClipsNavButton_Click(this, new RoutedEventArgs()); })),
             () => !_isBusy && !IsEditingHotkey());
     }
 
