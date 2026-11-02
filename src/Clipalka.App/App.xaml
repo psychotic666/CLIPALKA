@@ -2,13 +2,14 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Application.Resources>
-        <SolidColorBrush x:Key="WindowBrush" Color="#090E18" />
-        <LinearGradientBrush x:Key="SidebarBrush" StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#111720" Offset="0"/><GradientStop Color="#0D121A" Offset="1"/></LinearGradientBrush>
-        <SolidColorBrush x:Key="ContentBrush" Color="#0D1119" />
-        <LinearGradientBrush x:Key="PanelBrush" StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#171C25" Offset="0"/><GradientStop Color="#10151D" Offset="1"/></LinearGradientBrush>
-        <SolidColorBrush x:Key="PanelHoverBrush" Color="#172238" />
-        <SolidColorBrush x:Key="InputBrush" Color="#1B202B" />
-        <SolidColorBrush x:Key="BorderBrush" Color="#2C3341" />
+        <SolidColorBrush x:Key="WindowBrush" Color="#0B0D13" />
+        <SolidColorBrush x:Key="SidebarBrush" Color="#101219" />
+        <SolidColorBrush x:Key="ContentBrush" Color="#0E1119" />
+        <SolidColorBrush x:Key="PanelBrush" Color="#161A24" />
+        <SolidColorBrush x:Key="PanelHoverBrush" Color="#252A3A" />
+        <SolidColorBrush x:Key="InputBrush" Color="#1D2230" />
+        <SolidColorBrush x:Key="BorderBrush" Color="#2A3040" />
+        <LinearGradientBrush x:Key="SidebarSelectedBrush" StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#342753" Offset="0"/><GradientStop Color="#221D35" Offset="1"/></LinearGradientBrush>
         <SolidColorBrush x:Key="TextBrush" Color="#F5F7FC" />
         <SolidColorBrush x:Key="MutedBrush" Color="#A4AFC2" />
         <SolidColorBrush x:Key="SubtleBrush" Color="#6F7C92" />
@@ -76,8 +77,8 @@
         </Style>
 
         <Style x:Key="SidebarNavButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Height" Value="64" /><Setter Property="MinHeight" Value="64" />
-            <Setter Property="Margin" Value="10,4" /><Setter Property="Padding" Value="18,0" />
+            <Setter Property="Height" Value="52" /><Setter Property="MinHeight" Value="52" />
+            <Setter Property="Margin" Value="12,4" /><Setter Property="Padding" Value="16,0" />
             <Setter Property="Background" Value="Transparent" /><Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
             <Setter Property="BorderBrush" Value="Transparent" /><Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="FontWeight" Value="SemiBold" /><Setter Property="FontSize" Value="16" />
@@ -118,7 +119,7 @@
             <Setter Property="Background" Value="{StaticResource PanelBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="CornerRadius" Value="16" />
             <Setter Property="Padding" Value="20" />
         </Style>
 

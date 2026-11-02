@@ -20,7 +20,8 @@ public sealed class ControllerHotkeyService : IDisposable
     private readonly ControllerChordMatcher _matcher = new();
     private readonly Func<bool> _canTrigger;
     private readonly Action _saveReplay;
-    private List<DeviceState> _devices = [];
+    private List<IControllerInput> _devices = [];
+    public string DetectionDetails { get; private set; } = "Обнаружение ещё не запускалось.";
     private TimeSpan _lastScan = TimeSpan.FromSeconds(-3);
     private TimeSpan _learnUntil;
     private string? _learningDevice;
@@ -72,18 +73,25 @@ public sealed class ControllerHotkeyService : IDisposable
 
     public void RefreshDevices()
     {
-        var connected = RawGameController.RawGameControllers.ToArray();
-        var devices = new List<DeviceState>();
+        var devices = new List<IControllerInput>();
+        var errors = new List<string>();
+        RawGameController[] connected = [];
+        try { connected = RawGameController.RawGameControllers.ToArray(); }
+        catch (Exception error) { errors.Add("Windows.Gaming.Input: " + error.Message); }
         foreach (var controller in connected)
         {
             try
             {
                 var id = controller.NonRoamableId;
-                if (string.IsNullOrWhiteSpace(id) || controller.ButtonCount == 0) continue;
+                if (string.IsNullOrWhiteSpace(id)) id = $"wgi:{controller.HardwareVendorId:X4}:{controller.HardwareProductId:X4}:{controller.DisplayName}";
+                if (controller.ButtonCount == 0) continue;
                 devices.Add(_devices.FirstOrDefault(device => device.Id == id) ?? new DeviceState(controller, id));
             }
-            catch (Exception) { /* An unplugged device can disappear during enumeration. */ }
+            catch (Exception error) { errors.Add("WGI device: " + error.Message); }
         }
+        try { devices.AddRange(NativeControllerInputs.Enumerate()); }
+        catch (Exception error) { errors.Add("Desktop input: " + error.Message); }
+        DetectionDetails = $"WGI: {connected.Length}; доступные источники: {devices.Count}. " + string.Join("; ", errors);
         if (!_devices.Select(device => device.Id).SequenceEqual(devices.Select(device => device.Id)))
         {
             _devices = devices;
@@ -176,7 +184,7 @@ public sealed class ControllerHotkeyService : IDisposable
         CancelLearning();
     }
 
-    private sealed class DeviceState
+    private sealed class DeviceState : IControllerInput
     {
         public RawGameController Controller { get; }
         public string Id { get; }

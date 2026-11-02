@@ -328,6 +328,32 @@ public sealed class RecordingService : IAsyncDisposable
         StatusChanged?.Invoke(this, muted ? "Микрофон выключен" : "Микрофон включён");
     }
 
+    public async Task UpdateAudioLevelsAsync(AppSettings settings)
+    {
+        await _gate.WaitAsync();
+        try
+        {
+            var microphone = CaptureSettingsPolicy.Gain(settings.MicrophoneVolumePercent);
+            var output = CaptureSettingsPolicy.Gain(settings.OutputVolumePercent);
+            var sessions = new[] { _manualSession, _replaySession }.OfType<RecordingSession>().Where(session => !session.HasFailed).ToArray();
+            var starts = sessions.Select(session => (Mic: session.MicrophoneVolume, Output: session.OutputVolume)).ToArray();
+            // A short ramp avoids a discontinuity when changing gain on a nonzero sample.
+            for (var step = 1; step <= 8; step++)
+            {
+                for (var i = 0; i < sessions.Length; i++)
+                {
+                    var session = sessions[i];
+                    session.MicrophoneVolume = CaptureSettingsPolicy.InterpolateGain(starts[i].Mic, microphone, step, 8);
+                    session.OutputVolume = CaptureSettingsPolicy.InterpolateGain(starts[i].Output, output, step, 8);
+                    ApplyMicrophoneState(session);
+                }
+                if (step < 8) await Task.Delay(15);
+            }
+            _diagnostics?.Log("audio-gain-applied", new { microphone, output, restarted = false });
+        }
+        finally { _gate.Release(); }
+    }
+
     public async ValueTask DisposeAsync()
     {
         var failures = new List<Exception>();
@@ -439,6 +465,7 @@ public sealed class RecordingService : IAsyncDisposable
         _diagnostics?.Log("session-created", new { outputPath, target = target.Name, target.IsApplication,
             microphoneId = microphone?.ID, outputId = outputAudio?.ID, microphoneDevice = microphone?.DeviceName,
             outputDevice = outputAudio?.DeviceName, forceMono = microphone?.ForceMono, settings.FramesPerSecond,
+            microphoneVolume = microphone?.Volume, outputVolume = outputAudio?.Volume,
             requestedBitrate = RecordingQualityProfile.VideoBitrateFor(settings.FramesPerSecond) });
         return new RecordingSession(
             recorder,
@@ -446,7 +473,8 @@ public sealed class RecordingService : IAsyncDisposable
             outputPath,
             target,
             VolumeFromPercent(settings.MicrophoneVolumePercent), probe, _diagnostics,
-            error => StatusChanged?.Invoke(this, "Ошибка захвата: " + error));
+            error => StatusChanged?.Invoke(this, "Ошибка захвата: " + error))
+        { OutputAudio = outputAudio, OutputVolume = VolumeFromPercent(settings.OutputVolumePercent) };
     }
 
     private async Task<RecordingSession> StartSessionAsync(AppSettings settings, CaptureTarget target, string path, bool replay)
@@ -471,15 +499,23 @@ public sealed class RecordingService : IAsyncDisposable
 
     private void ApplyMicrophoneState(RecordingSession? session)
     {
-        if (session?.Microphone is null)
+        if (session is null || (session.Microphone is null && session.OutputAudio is null))
         {
             return;
         }
 
-        session.Microphone.Volume = _microphoneMuted ? 0f : session.MicrophoneVolume;
-        session.Recorder.GetDynamicOptionsBuilder()
-            .SetUpdatedAudioSource(session.Microphone)
-            .Apply();
+        var builder = session.Recorder.GetDynamicOptionsBuilder();
+        if (session.Microphone is not null)
+        {
+            session.Microphone.Volume = _microphoneMuted ? 0f : session.MicrophoneVolume;
+            builder.SetUpdatedAudioSource(session.Microphone);
+        }
+        if (session.OutputAudio is not null)
+        {
+            session.OutputAudio.Volume = session.OutputVolume;
+            builder.SetUpdatedAudioSource(session.OutputAudio);
+        }
+        builder.Apply();
     }
 
     private string CreateReplayTemporaryPath()
@@ -491,7 +527,7 @@ public sealed class RecordingService : IAsyncDisposable
         return path;
     }
 
-    private static float VolumeFromPercent(int value) => Math.Clamp(value, 0, 100) / 100f;
+    private static float VolumeFromPercent(int value) => CaptureSettingsPolicy.Gain(value);
 
     private string CreateReplaySnapshotPath()
     {
@@ -652,7 +688,9 @@ public sealed class RecordingService : IAsyncDisposable
         public CaptureAudioSource? Microphone { get; }
         public string OutputPath { get; }
         public CaptureTarget Target { get; }
-        public float MicrophoneVolume { get; }
+        public float MicrophoneVolume { get; set; }
+        public float OutputVolume { get; set; }
+        public LoopbackAudioSource? OutputAudio { get; init; }
         public DateTimeOffset StartedAtUtc { get; private set; }
         private readonly System.Diagnostics.Stopwatch _elapsed = new();
         public TimeSpan Elapsed => _elapsed.Elapsed;

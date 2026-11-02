@@ -47,6 +47,16 @@ jobs:
             throw "Replay export verification failed: $LASTEXITCODE"
           }
           Get-Content export-verification/result.txt
+      - name: Verify desktop controller input APIs
+        shell: pwsh
+        run: |
+          $inputPath = Join-Path $PWD 'input-verification'
+          dotnet publish/win-x64/CLIPALKA.dll --verify-input $inputPath
+          if ($LASTEXITCODE -ne 0) {
+            if (Test-Path input-verification/error.txt) { Get-Content input-verification/error.txt }
+            throw "Desktop controller verification failed: $LASTEXITCODE"
+          }
+          Get-Content input-verification/result.txt
       - name: Upload UI previews
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4

@@ -11,8 +11,8 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <AssemblyName>CLIPALKA</AssemblyName>
     <RootNamespace>Clipalka.App</RootNamespace>
-    <Version>0.9.3-rc.1</Version>
-    <FileVersion>0.9.3.0</FileVersion>
+    <Version>0.9.3-rc.2</Version>
+    <FileVersion>0.9.3.1</FileVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\clipalka.ico</ApplicationIcon>
   </PropertyGroup>

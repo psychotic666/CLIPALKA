@@ -46,6 +46,7 @@ public partial class MainWindow : Window
         {
             ("ui-1585", new Size(1585, 992), "home"),
             ("ui-1280", new Size(1280, 800), "home"),
+            ("ui-compact", new Size(1180, 760), "home"),
             ("ui-gallery", new Size(1280, 800), "gallery"),
             ("ui-diagnostics", new Size(1280, 800), "diagnostics"),
             ("ui-empty", new Size(1280, 800), "empty"),
@@ -79,6 +80,13 @@ public partial class MainWindow : Window
                 .Transform(new Point(0, RecordHotkeyHint.ActualHeight)).Y;
             if ((page is "home" or "empty") && (hintBottom > CaptureActionsGrid.ActualHeight || Math.Abs(ReplayButton.ActualHeight - 84) > 0.1))
                 throw new InvalidOperationException("Capture action layout clips its controls.");
+            if (page is "home" or "empty")
+            {
+                var hintBaselines = new[] { RecordHotkeyHint, ReplayHotkeyHint, MicrophoneHotkeyHint }
+                    .Select(hint => hint.TransformToAncestor(CaptureActionsGrid).Transform(new Point(0, hint.ActualHeight)).Y).ToArray();
+                if (hintBaselines.Max() - hintBaselines.Min() > 2 || hintBaselines.Max() > CaptureActionsGrid.ActualHeight)
+                    throw new InvalidOperationException("Action shortcuts must share a visible baseline at every window size.");
+            }
             var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)size.Width, (int)size.Height, 96, 96, PixelFormats.Pbgra32);
             bitmap.Render(root);
             var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
@@ -119,7 +127,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        GreetingText.Text = DateTime.Now.Hour switch { < 6 => "Доброй ночи", < 12 => "Доброе утро", < 18 => "Добрый день", _ => "Добрый вечер" };
+        GreetingText.Text = "Центр захвата";
         foreach (var field in new[] { OutputPathTextBox, RecordHotkeyTextBox, ReplayHotkeyTextBox, MicrophoneHotkeyTextBox, GalleryHotkeyTextBox })
             field.TextChanged += SettingsFieldChanged;
         foreach (var field in new[] { DisplayComboBox, FpsComboBox, OutputDeviceComboBox, InputDeviceComboBox })
@@ -298,22 +306,24 @@ public partial class MainWindow : Window
             if (_recordingService.IsDiagnosing) throw new InvalidOperationException("Сначала завершите проверку записи.");
             if (_controllerHotkeys?.IsLearning == true) throw new InvalidOperationException("Сначала отпусти кнопки или отмени назначение контроллера.");
             if (_recordingService.IsRecording) throw new InvalidOperationException("Остановите запись перед изменением настроек.");
+            var previous = System.Text.Json.JsonSerializer.Deserialize<AppSettings>(System.Text.Json.JsonSerializer.Serialize(_settings))!;
             ApplyFormToSettings();
             RecordingPathService.EnsureOutputDirectory(_settings.OutputDirectory);
             await _settingsStore.SaveAsync(_settings);
             RegisterHotkeys();
 
-            if (_settings.StartReplayBufferWithApp)
+            if (_recordingService.IsReplayBuffering)
             {
-                if (_recordingService.IsReplayBuffering)
+                if (CaptureSettingsPolicy.RequiresReplayRestart(previous, _settings))
                 {
                     await _recordingService.StopReplayBufferAsync();
+                    await _recordingService.StartReplayBufferAsync(_settings);
                 }
-                await _recordingService.StartReplayBufferAsync(_settings);
+                else await _recordingService.UpdateAudioLevelsAsync(_settings);
             }
-            else if (!_settings.StartReplayBufferWithApp && _recordingService.IsReplayBuffering)
+            else if (_settings.StartReplayBufferWithApp)
             {
-                await _recordingService.StopReplayBufferAsync();
+                await _recordingService.StartReplayBufferAsync(_settings);
             }
 
             UpdateUi();
@@ -438,10 +448,10 @@ public partial class MainWindow : Window
         foreach (var button in new[] { DashboardNavButton, ClipsNavButton, VideoNavButton, HotkeysNavButton })
         {
             var isSelected = ReferenceEquals(button, selectedNavigationButton);
-            button.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(isSelected ? "#34266D" : "#00000000"));
+            button.Background = isSelected ? (Brush)FindResource("SidebarSelectedBrush") : Brushes.Transparent;
             button.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(isSelected ? "#FFFFFF" : "#A4AFC2"));
             button.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(isSelected ? "#8B5CF6" : "#00000000"));
-            button.BorderThickness = isSelected ? new Thickness(5, 0, 0, 0) : new Thickness(0);
+            button.BorderThickness = isSelected ? new Thickness(3, 0, 0, 0) : new Thickness(0);
         }
     }
 
@@ -540,10 +550,15 @@ public partial class MainWindow : Window
 
     private double ApplyWindowScale(Size size)
     {
-        var scale = Math.Clamp(Math.Min(size.Width / 1585, size.Height / 992), 0.7, 1);
-        ShellRoot.LayoutTransform = new ScaleTransform(scale, scale);
-        System.Windows.Shell.WindowChrome.GetWindowChrome(this).CaptionHeight = 70 * scale;
-        return scale;
+        // Keep text at its real size. WPF handles display DPI; the page scrolls vertically.
+        ShellRoot.LayoutTransform = Transform.Identity;
+        SidebarColumn.Width = new GridLength(size.Width < 1440 ? 200 : 230);
+        DashboardRightColumn.Width = new GridLength(size.Width < 1440 ? 350 : 405);
+        DashboardGapColumn.Width = new GridLength(20);
+        CapturePreviewBorder.Height = size.Height < 850 ? 180 : 250;
+        DashboardHeadingGrid.Height = size.Height < 850 ? 80 : 90;
+        System.Windows.Shell.WindowChrome.GetWindowChrome(this).CaptionHeight = 70;
+        return 1;
     }
 
     private void RestoreFromTray()
@@ -697,6 +712,7 @@ public partial class MainWindow : Window
         ToggleReplayButton.IsEnabled = !_isBusy;
         ToggleReplayButton.Content = _recordingService.IsReplayBuffering ? "Остановить replay" : "Включить replay";
         CaptureQualityText.Text = $"H.264  •  {_settings.FramesPerSecond} FPS  •  Stereo";
+        SourceIdentityIcon.Data = (Geometry)FindResource(_recordingService.IsReplayCapturingApplication ? "GameIcon" : "CaptureIcon");
         RecordStartGlyph.Visibility = recording ? Visibility.Collapsed : Visibility.Visible;
         RecordStopGlyph.Visibility = recording ? Visibility.Visible : Visibility.Collapsed;
         DiagnosticsButton.Content = _recordingService.IsDiagnosing ? "Остановить проверку" : "Начать проверку (90 секунд)";
@@ -887,6 +903,33 @@ public partial class MainWindow : Window
             _controllerHotkeys.StartLearning(id);
         }
         catch (Exception error) { ShowError("Не удалось назначить кнопки", error); }
+    }
+
+    private void RefreshControllers_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (_controllerHotkeys is null) InitializeControllerHotkeys();
+            else _controllerHotkeys.RefreshDevices();
+        }
+        catch (Exception error) { ShowError("Ошибка обнаружения контроллера", error); }
+    }
+
+    private void OpenWindowsControllers_Click(object sender, RoutedEventArgs e)
+    {
+        try { Process.Start(new ProcessStartInfo("control.exe", "joy.cpl") { UseShellExecute = true }); }
+        catch (Exception error) { ShowError("Не удалось открыть контроллеры Windows", error); }
+    }
+
+    private void CopyControllerDetails_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            System.Windows.Clipboard.SetText((_controllerHotkeys?.DetectionDetails ?? "Input service unavailable") + "\n" +
+                string.Join("\n", ControllerComboBox.Items.Cast<ControllerDevice>().Select(device => device.Name)));
+            SetStatus("Сведения об обнаружении контроллеров скопированы");
+        }
+        catch (Exception error) { ShowError("Не удалось скопировать сведения", error); }
     }
 
     private void ClearControllerButton_Click(object sender, RoutedEventArgs e)

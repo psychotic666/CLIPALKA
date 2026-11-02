@@ -6,6 +6,24 @@ public partial class App : System.Windows.Application
 {
     protected override async void OnStartup(StartupEventArgs e)
     {
+        if (e.Args.Length == 2 && e.Args[0] == "--verify-input")
+        {
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            base.OnStartup(e);
+            System.IO.Directory.CreateDirectory(e.Args[1]);
+            try
+            {
+                var result = Services.NativeControllerInputs.VerifyDesktopInterop();
+                System.IO.File.WriteAllText(System.IO.Path.Combine(e.Args[1], "result.txt"), result);
+                Shutdown(0);
+            }
+            catch (Exception error)
+            {
+                System.IO.File.WriteAllText(System.IO.Path.Combine(e.Args[1], "error.txt"), error.ToString());
+                Shutdown(1);
+            }
+            return;
+        }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-export")
         {
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
