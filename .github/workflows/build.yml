@@ -25,6 +25,9 @@ jobs:
         run: |
           dotnet restore src/Clipalka.App/Clipalka.App.csproj -r win-x64 -p:Platform=x64
           dotnet publish src/Clipalka.App/Clipalka.App.csproj -c Release -r win-x64 --self-contained true -p:Platform=x64 --no-restore -o publish/win-x64
+      - name: Inventory installed application files
+        shell: pwsh
+        run: ./installer/New-InstallManifest.ps1 -SourceDirectory publish/win-x64
       - name: Render WPF interface samples
         shell: pwsh
         run: |
@@ -56,6 +59,21 @@ jobs:
         with:
           name: CLIPALKA-export-verification
           path: export-verification
+      - name: Verify installer upgrade and uninstall
+        shell: pwsh
+        run: |
+          $compiler = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+          if (!(Test-Path $compiler)) {
+            choco install innosetup --yes --no-progress
+            if ($LASTEXITCODE -ne 0) { throw 'Inno Setup installation failed' }
+          }
+          ./installer/Test-Upgrade.ps1 -Compiler $compiler
+      - name: Upload installer verification logs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: CLIPALKA-installer-verification
+          path: artifacts/installer-verification
       - name: Download Visual C++ runtime
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
