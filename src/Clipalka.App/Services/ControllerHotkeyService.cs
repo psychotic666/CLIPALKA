@@ -6,7 +6,10 @@ using Clipalka.Core.Services;
 
 namespace Clipalka.App.Services;
 
-public sealed record ControllerDevice(string Id, string Name);
+public sealed record ControllerDevice(string Id, string Name)
+{
+    public override string ToString() => Name;
+}
 
 // RawGameController covers HID/DirectInput and controllers exposed through XInput.
 // Device-reported indices are learned rather than guessed from a vendor-specific layout.
