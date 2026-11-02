@@ -4,8 +4,25 @@ namespace Clipalka.App;
 
 public partial class App : System.Windows.Application
 {
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
+        if (e.Args.Length == 2 && e.Args[0] == "--verify-export")
+        {
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            base.OnStartup(e);
+            try
+            {
+                await Services.ReplayExportVerification.RunAsync(e.Args[1]);
+                Shutdown(0);
+            }
+            catch (Exception error)
+            {
+                System.IO.Directory.CreateDirectory(e.Args[1]);
+                System.IO.File.WriteAllText(System.IO.Path.Combine(e.Args[1], "error.txt"), error.ToString());
+                Shutdown(1);
+            }
+            return;
+        }
         if (e.Args.Length == 2 && e.Args[0] == "--render-ui")
         {
             ShutdownMode = ShutdownMode.OnExplicitShutdown;

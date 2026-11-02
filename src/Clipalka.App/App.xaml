@@ -106,6 +106,7 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Root" Property="Background" Value="#1B2941" /><Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource FocusBrush}" /></Trigger>
                             <Trigger Property="IsPressed" Value="True"><Setter TargetName="Root" Property="Opacity" Value="0.7" /></Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource FocusBrush}" /></Trigger>
                             <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.35" /></Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>

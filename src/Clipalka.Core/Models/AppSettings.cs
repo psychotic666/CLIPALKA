@@ -14,6 +14,8 @@ public sealed class AppSettings
     public int MicrophoneVolumePercent { get; set; } = 68;
     public string RecordHotkey { get; set; } = "Ctrl+Shift+R";
     public string ReplayHotkey { get; set; } = "Ctrl+Shift+Z";
+    public string MicrophoneHotkey { get; set; } = "Shift+X";
+    public string GalleryHotkey { get; set; } = "Ctrl+G";
     public bool StartReplayBufferWithApp { get; set; } = true;
     public bool AutoCaptureGame { get; set; } = true;
     public bool HotkeysOnlyWhileGameActive { get; set; } = true;

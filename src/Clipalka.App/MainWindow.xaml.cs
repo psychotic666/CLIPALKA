@@ -28,21 +28,39 @@ public partial class MainWindow : Window
         ReplaySourceText.Text = "Rocket League";
         CaptureStateText.Text = "Захват активен";
         CaptureDescriptionText.Text = "Игра запущена и отслеживается";
+        CaptureStateDot.Fill = (Brush)FindResource("SuccessBrush");
+        CaptureStateText.Foreground = (Brush)FindResource("SuccessBrush");
+        ToggleReplayButton.Content = "Остановить replay";
         var thumbnail = new System.Windows.Media.Imaging.BitmapImage(new Uri("pack://application:,,,/Assets/capture-preview.png"));
-        RecentClipsItemsControl.ItemsSource = Enumerable.Range(1, 4).Select(i =>
+        CapturePreviewImage.Source = thumbnail;
+        PreviewEmptyPanel.Visibility = Visibility.Collapsed;
+        PreviewCaptionText.Text = "Последний сохранённый клип · Rocket League";
+        _galleryClips = Enumerable.Range(1, 8).Select(i =>
             new RecentClipItem("", $"Пример клипа {i}", "Сегодня, 21:42", "0:30", thumbnail)).ToList();
+        RecentClipsItemsControl.ItemsSource = _galleryClips.Take(4).ToList();
+        FilterGallery();
         RecentClipsEmptyText.Visibility = Visibility.Collapsed;
         var root = (FrameworkElement)Content;
         Content = null;
-        foreach (var (name, size, diagnosticsPage) in new[]
+        foreach (var (name, size, page) in new[]
         {
-            ("ui-1585", new Size(1585, 992), false),
-            ("ui-1280", new Size(1280, 800), false),
-            ("ui-diagnostics", new Size(1280, 800), true)
+            ("ui-1585", new Size(1585, 992), "home"),
+            ("ui-1280", new Size(1280, 800), "home"),
+            ("ui-gallery", new Size(1280, 800), "gallery"),
+            ("ui-diagnostics", new Size(1280, 800), "diagnostics"),
+            ("ui-empty", new Size(1280, 800), "empty")
         })
         {
-            DashboardPage.Visibility = diagnosticsPage ? Visibility.Collapsed : Visibility.Visible;
-            VideoPage.Visibility = diagnosticsPage ? Visibility.Visible : Visibility.Collapsed;
+            ShowPage(page == "gallery" ? AudioPage : page == "diagnostics" ? VideoPage : DashboardPage,
+                page == "gallery" ? ClipsNavButton : page == "diagnostics" ? VideoNavButton : DashboardNavButton);
+            if (page == "empty")
+            {
+                CapturePreviewImage.Source = null;
+                PreviewEmptyPanel.Visibility = Visibility.Visible;
+                PreviewCaptionText.Text = "Предпросмотр появится после сохранения клипа";
+                RecentClipsItemsControl.ItemsSource = null;
+                RecentClipsEmptyText.Visibility = Visibility.Visible;
+            }
             var scale = ApplyWindowScale(size);
             root.Width = size.Width / scale;
             root.Height = size.Height / scale;
@@ -51,7 +69,7 @@ public partial class MainWindow : Window
             root.UpdateLayout();
             var hintBottom = RecordHotkeyHint.TransformToAncestor(CaptureActionsGrid)
                 .Transform(new Point(0, RecordHotkeyHint.ActualHeight)).Y;
-            if (!diagnosticsPage && (hintBottom > CaptureActionsGrid.ActualHeight || Math.Abs(ReplayButton.ActualHeight - 84) > 0.1))
+            if ((page is "home" or "empty") && (hintBottom > CaptureActionsGrid.ActualHeight || Math.Abs(ReplayButton.ActualHeight - 84) > 0.1))
                 throw new InvalidOperationException("Capture action layout clips its controls.");
             var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)size.Width, (int)size.Height, 96, 96, PixelFormats.Pbgra32);
             bitmap.Render(root);
@@ -66,6 +84,8 @@ public partial class MainWindow : Window
 
     private const int RecordHotkeyId = 1001;
     private const int ReplayHotkeyId = 1002;
+    private const int MicrophoneHotkeyId = 1003;
+    private const int GalleryHotkeyId = 1004;
     private readonly ISettingsStore _settingsStore;
     private readonly DeviceCatalogService _deviceCatalog = new();
     private readonly CaptureTargetService _captureTargets = new();
@@ -79,10 +99,23 @@ public partial class MainWindow : Window
     private bool _exitRequested;
     private bool _backgroundHintShown;
     private bool _isRefreshingReplayTarget;
+    private bool _isBusy;
+    private IReadOnlyList<RecentClipItem> _galleryClips = [];
+    private bool _formReady;
+    private bool _settingsDirty;
 
     public MainWindow()
     {
         InitializeComponent();
+        GreetingText.Text = DateTime.Now.Hour switch { < 6 => "Доброй ночи", < 12 => "Доброе утро", < 18 => "Добрый день", _ => "Добрый вечер" };
+        foreach (var field in new[] { OutputPathTextBox, RecordHotkeyTextBox, ReplayHotkeyTextBox, MicrophoneHotkeyTextBox, GalleryHotkeyTextBox })
+            field.TextChanged += SettingsFieldChanged;
+        foreach (var field in new[] { DisplayComboBox, FpsComboBox, OutputDeviceComboBox, InputDeviceComboBox })
+            field.SelectionChanged += SettingsFieldChanged;
+        OutputVolumeSlider.ValueChanged += SettingsFieldChanged;
+        MicrophoneVolumeSlider.ValueChanged += SettingsFieldChanged;
+        foreach (var field in new[] { AutoGameCheckBox, StartReplayCheckBox, GameOnlyHotkeysCheckBox })
+            field.Click += SettingsFieldChanged;
         _recordingService = new RecordingService(new ReplayClipExporter(), _captureTargets);
         _trayNotifications = new TrayNotificationService();
         _captureNotifications = new CaptureNotificationService(Dispatcher);
@@ -94,7 +127,7 @@ public partial class MainWindow : Window
         _trayNotifications.ExitRequested += () => Dispatcher.BeginInvoke(RequestExit);
         _replayTargetTimer = new DispatcherTimer
         {
-            Interval = TimeSpan.FromSeconds(2)
+            Interval = TimeSpan.FromSeconds(1)
         };
         _replayTargetTimer.Tick += ReplayTargetTimer_Tick;
         var settingsPath = Path.Combine(
@@ -149,6 +182,7 @@ public partial class MainWindow : Window
         {
             ShowError("Не удалось запустить CLIPALKA", exception);
         }
+        finally { UpdateUi(); _replayTargetTimer.Start(); }
     }
 
     private async void RecordButton_Click(object sender, RoutedEventArgs e) => await ToggleRecordingAsync();
@@ -157,7 +191,6 @@ public partial class MainWindow : Window
     {
         await RunUiActionAsync(async () =>
         {
-            ApplyFormToSettings();
             var wasRecording = _recordingService.IsRecording;
             var outputPath = await _recordingService.ToggleRecordingAsync(_settings);
             if (wasRecording)
@@ -177,7 +210,7 @@ public partial class MainWindow : Window
                 _captureNotifications.Show(
                     CaptureNotificationKind.Recording,
                     "Запись началась",
-                    _recordingService.ReplayCaptureName is { Length: > 0 } name
+                    _recordingService.RecordingCaptureName is { Length: > 0 } name
                         ? $"Источник: {name}"
                         : "CLIPALKA записывает игру и звук");
             }
@@ -191,7 +224,6 @@ public partial class MainWindow : Window
     {
         await RunUiActionAsync(async () =>
         {
-            ApplyFormToSettings();
             ReplayButton.IsEnabled = false;
             SetStatus("Сохраняю последние 30 секунд…");
             _captureNotifications.Show(
@@ -212,13 +244,23 @@ public partial class MainWindow : Window
 
     private void MicrophoneButton_Click(object sender, RoutedEventArgs e)
     {
-        _recordingService.SetMicrophoneMuted(!_recordingService.IsMicrophoneMuted);
-        _captureNotifications.Show(
-            CaptureNotificationKind.Microphone,
-            _recordingService.IsMicrophoneMuted ? "Микрофон выключен" : "Микрофон включён",
-            _recordingService.IsMicrophoneMuted ? "Голос не попадёт в запись" : "Голос снова записывается");
-        UpdateUi();
+        try
+        {
+            _recordingService.SetMicrophoneMuted(!_recordingService.IsMicrophoneMuted);
+            _captureNotifications.Show(
+                CaptureNotificationKind.Microphone,
+                _recordingService.IsMicrophoneMuted ? "Микрофон выключен" : "Микрофон включён",
+                _recordingService.IsMicrophoneMuted ? "Голос не попадёт в запись" : "Голос снова записывается");
+            UpdateUi();
+        }
+        catch (Exception error) { ShowError("Не удалось переключить микрофон", error); }
     }
+
+    private async void ToggleReplayButton_Click(object sender, RoutedEventArgs e) => await RunUiActionAsync(async () =>
+    {
+        if (_recordingService.IsReplayBuffering) await _recordingService.StopReplayBufferAsync();
+        else await _recordingService.StartReplayBufferAsync(_settings);
+    });
 
     private void BrowseOutputPath_Click(object sender, RoutedEventArgs e)
     {
@@ -241,6 +283,7 @@ public partial class MainWindow : Window
         await RunUiActionAsync(async () =>
         {
             if (_recordingService.IsDiagnosing) throw new InvalidOperationException("Сначала завершите проверку записи.");
+            if (_recordingService.IsRecording) throw new InvalidOperationException("Остановите запись перед изменением настроек.");
             ApplyFormToSettings();
             RecordingPathService.EnsureOutputDirectory(_settings.OutputDirectory);
             await _settingsStore.SaveAsync(_settings);
@@ -260,6 +303,8 @@ public partial class MainWindow : Window
             }
 
             UpdateUi();
+            await LoadRecentClipsAsync();
+            _settingsDirty = false;
             SetStatus("Настройки сохранены");
         });
     }
@@ -356,8 +401,11 @@ public partial class MainWindow : Window
     private void DashboardNavButton_Click(object sender, RoutedEventArgs e) =>
         ShowPage(DashboardPage, DashboardNavButton);
 
-    private void ClipsNavButton_Click(object sender, RoutedEventArgs e) =>
+    private async void ClipsNavButton_Click(object sender, RoutedEventArgs e)
+    {
         ShowPage(AudioPage, ClipsNavButton);
+        await RunUiActionAsync(LoadRecentClipsAsync);
+    }
 
     private void VideoNavButton_Click(object sender, RoutedEventArgs e) =>
         ShowPage(VideoPage, VideoNavButton);
@@ -384,9 +432,12 @@ public partial class MainWindow : Window
 
     private void OpenClipsFolder_Click(object sender, RoutedEventArgs e)
     {
-        ApplyFormToSettings();
-        var outputDirectory = RecordingPathService.EnsureOutputDirectory(_settings.OutputDirectory);
-        Process.Start(new ProcessStartInfo(outputDirectory) { UseShellExecute = true });
+        try
+        {
+            var outputDirectory = RecordingPathService.EnsureOutputDirectory(_settings.OutputDirectory);
+            Process.Start(new ProcessStartInfo(outputDirectory) { UseShellExecute = true });
+        }
+        catch (Exception error) { ShowError("Не удалось открыть папку", error); }
     }
 
     private void OpenClip_Click(object sender, RoutedEventArgs e)
@@ -396,20 +447,50 @@ public partial class MainWindow : Window
             return;
         }
 
-        Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
+        try { Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true }); }
+        catch (Exception error) { ShowError("Не удалось открыть клип", error); }
+    }
+
+    private void RevealClip_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string path } || !File.Exists(path)) return;
+        try
+        {
+            var start = new ProcessStartInfo("explorer.exe") { UseShellExecute = false };
+            start.ArgumentList.Add("/select,");
+            start.ArgumentList.Add(path);
+            Process.Start(start);
+        }
+        catch (Exception error) { ShowError("Не удалось открыть папку клипа", error); }
+    }
+
+    private async void RefreshClips_Click(object sender, RoutedEventArgs e) => await RunUiActionAsync(LoadRecentClipsAsync);
+    private void ClipSearch_TextChanged(object sender, TextChangedEventArgs e) { if (GalleryItemsControl is not null) FilterGallery(); }
+    private void FilterGallery()
+    {
+        var query = ClipSearchTextBox.Text.Trim();
+        var clips = _galleryClips.Where(clip => string.IsNullOrEmpty(query) || clip.Title.Contains(query, StringComparison.OrdinalIgnoreCase)).ToList();
+        GalleryItemsControl.ItemsSource = clips;
+        GalleryEmptyPanel.Visibility = clips.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        GalleryCountText.Text = $"Клипов: {clips.Count} · последние 100 записей";
     }
 
     private async Task LoadRecentClipsAsync()
     {
         var outputDirectory = _settings.OutputDirectory;
-        var clips = await Task.Run(() => RecentClipService.Load(outputDirectory));
-        RecentClipsItemsControl.ItemsSource = clips;
-        RecentClipsEmptyText.Visibility = clips.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        _galleryClips = await Task.Run(() => RecentClipService.Load(outputDirectory, 100));
+        RecentClipsItemsControl.ItemsSource = _galleryClips.Take(4).ToList();
+        RecentClipsEmptyText.Visibility = _galleryClips.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        CapturePreviewImage.Source = _galleryClips.FirstOrDefault()?.Thumbnail;
+        PreviewEmptyPanel.Visibility = _galleryClips.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        PreviewCaptionText.Text = _galleryClips.Count == 0 ? "Предпросмотр появится после сохранения клипа" : "Последний сохранённый клип · " + _galleryClips[0].Title;
+        FilterGallery();
     }
 
     private async void ReplayTargetTimer_Tick(object? sender, EventArgs e)
     {
-        if (_isRefreshingReplayTarget || _isClosing || !_recordingService.IsReplayBuffering)
+        UpdateUi();
+        if (_isBusy || _isRefreshingReplayTarget || _isClosing || !_recordingService.IsReplayBuffering)
         {
             return;
         }
@@ -489,10 +570,13 @@ public partial class MainWindow : Window
 
     private void PopulateForm()
     {
+        _formReady = false;
         OutputPathTextBox.Text = _settings.OutputDirectory;
         FpsComboBox.SelectedValue = _settings.FramesPerSecond.ToString();
         RecordHotkeyTextBox.Text = _settings.RecordHotkey;
         ReplayHotkeyTextBox.Text = _settings.ReplayHotkey;
+        MicrophoneHotkeyTextBox.Text = _settings.MicrophoneHotkey;
+        GalleryHotkeyTextBox.Text = _settings.GalleryHotkey;
         StartReplayCheckBox.IsChecked = _settings.StartReplayBufferWithApp;
         AutoGameCheckBox.IsChecked = _settings.AutoCaptureGame;
         GameOnlyHotkeysCheckBox.IsChecked = _settings.HotkeysOnlyWhileGameActive;
@@ -501,12 +585,28 @@ public partial class MainWindow : Window
         SelectDevice(InputDeviceComboBox, _settings.InputAudioDeviceId);
         OutputVolumeSlider.Value = _settings.OutputVolumePercent;
         MicrophoneVolumeSlider.Value = _settings.MicrophoneVolumePercent;
+        _formReady = true;
+        _settingsDirty = false;
+    }
+
+    private void SettingsFieldChanged(object sender, RoutedEventArgs e)
+    {
+        if (!_formReady) return;
+        _settingsDirty = true;
+        SaveAllSettingsButton.Content = "Сохранить изменения";
+        SaveAllSettingsButton.BorderBrush = (Brush)FindResource("AccentHoverBrush");
     }
 
     private void ApplyFormToSettings()
     {
         ValidateHotkey(RecordHotkeyTextBox.Text, "записи");
         ValidateHotkey(ReplayHotkeyTextBox.Text, "replay");
+        ValidateHotkey(MicrophoneHotkeyTextBox.Text, "микрофона");
+        ValidateHotkey(GalleryHotkeyTextBox.Text, "галереи");
+        var bindings = new[] { RecordHotkeyTextBox.Text, ReplayHotkeyTextBox.Text, MicrophoneHotkeyTextBox.Text, GalleryHotkeyTextBox.Text }
+            .Select(value => { HotkeyBinding.TryParse(value, out var binding); return binding?.ToString(); }).Where(value => value is not null).ToList();
+        if (bindings.Distinct(StringComparer.OrdinalIgnoreCase).Count() != bindings.Count)
+            throw new InvalidOperationException("У каждого действия должен быть свой хоткей. Escape отключает выбранный хоткей.");
 
         _settings.OutputDirectory = RecordingPathService.EnsureOutputDirectory(OutputPathTextBox.Text);
         _settings.FramesPerSecond = int.TryParse(FpsComboBox.SelectedValue?.ToString(), out var fps) ? fps : 60;
@@ -517,6 +617,8 @@ public partial class MainWindow : Window
         _settings.MicrophoneVolumePercent = (int)Math.Round(MicrophoneVolumeSlider.Value);
         _settings.RecordHotkey = RecordHotkeyTextBox.Text.Trim();
         _settings.ReplayHotkey = ReplayHotkeyTextBox.Text.Trim();
+        _settings.MicrophoneHotkey = MicrophoneHotkeyTextBox.Text.Trim();
+        _settings.GalleryHotkey = GalleryHotkeyTextBox.Text.Trim();
         _settings.StartReplayBufferWithApp = StartReplayCheckBox.IsChecked == true;
         _settings.AutoCaptureGame = AutoGameCheckBox.IsChecked == true;
         _settings.HotkeysOnlyWhileGameActive = GameOnlyHotkeysCheckBox.IsChecked == true;
@@ -555,16 +657,35 @@ public partial class MainWindow : Window
             replayBinding,
             () => _ = SaveReplayAsync(),
             CanExecuteGlobalHotkey);
+        HotkeyBinding.TryParse(_settings.MicrophoneHotkey, out var microphoneBinding);
+        HotkeyBinding.TryParse(_settings.GalleryHotkey, out var galleryBinding);
+        _hotkeys.Register(MicrophoneHotkeyId, microphoneBinding,
+            () => MicrophoneButton_Click(this, new RoutedEventArgs()), CanExecuteGlobalHotkey);
+        _hotkeys.Register(GalleryHotkeyId, galleryBinding,
+            () => { RestoreFromTray(); ClipsNavButton_Click(this, new RoutedEventArgs()); },
+            () => !_isBusy && !IsEditingHotkey());
     }
 
     private void UpdateUi()
     {
+        SaveAllSettingsButton.Content = _settingsDirty ? "Сохранить изменения" : "Сохранить настройки";
+        SaveAllSettingsButton.BorderBrush = (Brush)FindResource(_settingsDirty ? "AccentHoverBrush" : "BorderBrush");
+        var recording = _recordingService.IsRecording;
+        RecordButton.IsEnabled = !_isBusy && !_recordingService.IsDiagnosing;
+        SaveAllSettingsButton.IsEnabled = !_isBusy && !recording && !_recordingService.IsDiagnosing;
+        ToggleReplayButton.IsEnabled = !_isBusy;
+        ToggleReplayButton.Content = _recordingService.IsReplayBuffering ? "Остановить replay" : "Включить replay";
+        CaptureQualityText.Text = $"H.264  •  {_settings.FramesPerSecond} FPS  •  Stereo";
+        RecordStartGlyph.Visibility = recording ? Visibility.Collapsed : Visibility.Visible;
+        RecordStopGlyph.Visibility = recording ? Visibility.Visible : Visibility.Collapsed;
         DiagnosticsButton.Content = _recordingService.IsDiagnosing ? "Остановить проверку" : "Начать проверку (90 секунд)";
         DisplayComboBox.IsEnabled = FpsComboBox.IsEnabled = OutputDeviceComboBox.IsEnabled = InputDeviceComboBox.IsEnabled = !_recordingService.IsDiagnosing;
-        RecordButtonTitle.Text = _recordingService.IsRecording ? "Остановить запись" : "Запись";
+        RecordButtonTitle.Text = recording ? _recordingService.RecordingElapsed.ToString(@"hh\:mm\:ss") : "Запись";
         RecordButton.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
             _recordingService.IsRecording ? "#402331" : "#151B27"));
         MicrophoneButtonTitle.Text = "Микрофон";
+        MicrophoneStateText.Text = _recordingService.IsMicrophoneMuted ? "Выключен" : "Включён";
+        MicrophoneStateText.Foreground = _recordingService.IsMicrophoneMuted ? (Brush)FindResource("DangerBrush") : (Brush)FindResource("MutedBrush");
         MicrophoneIcon.Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
             _recordingService.IsMicrophoneMuted ? "#F04461" : "#F5F7FC"));
         ReplayStatusText.Text = _recordingService.IsReplayBuffering ? "CLIPALKA работает" : "Replay выключен";
@@ -574,15 +695,20 @@ public partial class MainWindow : Window
         ReplaySourceText.Text = !_recordingService.IsReplayBuffering
             ? "Источник не выбран"
             : _recordingService.ReplayCaptureName ?? "Источник определяется";
-        CaptureStateText.Text = _recordingService.IsReplayBuffering ? "Захват активен" : "Ожидание захвата";
+        CaptureStateText.Text = recording ? "Идёт запись · " + _recordingService.RecordingCaptureName : _recordingService.IsReplayBuffering ? "Захват активен" : "Ожидание захвата";
+        CaptureStateText.Foreground = CaptureStateDot.Fill = (Brush)FindResource(recording ? "DangerBrush" : _recordingService.IsReplayBuffering ? "SuccessBrush" : "SubtleBrush");
         CaptureDescriptionText.Text = !_recordingService.IsReplayBuffering ? "Replay-буфер выключен" : _recordingService.IsReplayCapturingApplication ? "Игра запущена и отслеживается" : "Записывается выбранный монитор";
-        ReplayButton.IsEnabled = _recordingService.IsReplayBuffering;
+        ReplayButton.IsEnabled = _recordingService.IsReplayBuffering && !_isBusy;
         RecordHotkeyHint.Text = string.IsNullOrWhiteSpace(_settings.RecordHotkey) ? "Хоткей выключен" : _settings.RecordHotkey.Replace("+", " + ");
         ReplayHotkeyHint.Text = string.IsNullOrWhiteSpace(_settings.ReplayHotkey) ? "Хоткей выключен" : _settings.ReplayHotkey.Replace("+", " + ");
+        MicrophoneHotkeyHint.Text = string.IsNullOrWhiteSpace(_settings.MicrophoneHotkey) ? "Без хоткея" : _settings.MicrophoneHotkey.Replace("+", " + ");
     }
 
     private async Task RunUiActionAsync(Func<Task> action)
     {
+        if (_isBusy || _isClosing) return;
+        _isBusy = true;
+        UpdateUi();
         try
         {
             await action();
@@ -593,6 +719,7 @@ public partial class MainWindow : Window
         }
         finally
         {
+            _isBusy = false;
             UpdateUi();
         }
     }
@@ -657,8 +784,7 @@ public partial class MainWindow : Window
 
     private bool CanExecuteGlobalHotkey()
     {
-        if (IsActive &&
-            (RecordHotkeyTextBox.IsKeyboardFocusWithin || ReplayHotkeyTextBox.IsKeyboardFocusWithin))
+        if (_isBusy || IsEditingHotkey())
         {
             return false;
         }
@@ -671,6 +797,10 @@ public partial class MainWindow : Window
         SetStatus("Хоткей проигнорирован: активного игрового окна нет");
         return false;
     }
+
+    private bool IsEditingHotkey() => IsActive &&
+        (RecordHotkeyTextBox.IsKeyboardFocusWithin || ReplayHotkeyTextBox.IsKeyboardFocusWithin ||
+         MicrophoneHotkeyTextBox.IsKeyboardFocusWithin || GalleryHotkeyTextBox.IsKeyboardFocusWithin);
 
     private static void ValidateHotkey(string value, string purpose)
     {

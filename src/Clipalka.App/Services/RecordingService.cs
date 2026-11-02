@@ -138,6 +138,8 @@ public sealed class RecordingService : IAsyncDisposable
     public bool IsRecording => _manualSession is { HasFailed: false };
     public bool IsReplayBuffering => _replaySession is { HasFailed: false };
     public bool IsMicrophoneMuted => _microphoneMuted;
+    public string? RecordingCaptureName => _manualSession?.Target.Name;
+    public TimeSpan RecordingElapsed => _manualSession?.Elapsed ?? TimeSpan.Zero;
     public string? ReplayCaptureName => _replaySession?.Target.Name;
     public bool IsReplayCapturingApplication => _replaySession?.Target.IsApplication == true;
 
@@ -652,6 +654,8 @@ public sealed class RecordingService : IAsyncDisposable
         public CaptureTarget Target { get; }
         public float MicrophoneVolume { get; }
         public DateTimeOffset StartedAtUtc { get; private set; }
+        private readonly System.Diagnostics.Stopwatch _elapsed = new();
+        public TimeSpan Elapsed => _elapsed.Elapsed;
 
         public void Start()
         {
@@ -660,6 +664,7 @@ public sealed class RecordingService : IAsyncDisposable
             _diagnostics?.Log("record-return", new { OutputPath });
             StartedAtUtc = DateTimeOffset.UtcNow;
             _started = true;
+            _elapsed.Start();
         }
 
         public async Task StopAsync()

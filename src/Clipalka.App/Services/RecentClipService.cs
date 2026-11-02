@@ -150,11 +150,10 @@ public static class RecentClipService
 
     private static ImageSource CreateFallbackThumbnail()
     {
-        var image = new BitmapImage();
-        image.BeginInit();
-        image.UriSource = new Uri("pack://application:,,,/Assets/capture-preview.png", UriKind.Absolute);
-        image.CacheOption = BitmapCacheOption.OnLoad;
-        image.EndInit();
+        var drawing = new DrawingGroup();
+        drawing.Children.Add(new GeometryDrawing(new SolidColorBrush(Color.FromRgb(22, 28, 42)), null, new RectangleGeometry(new Rect(0, 0, 360, 200))));
+        drawing.Children.Add(new GeometryDrawing(new SolidColorBrush(Color.FromRgb(149, 111, 255)), null, Geometry.Parse("M 165,78 L 165,122 L 203,100 Z")));
+        var image = new DrawingImage(drawing);
         image.Freeze();
         return image;
     }

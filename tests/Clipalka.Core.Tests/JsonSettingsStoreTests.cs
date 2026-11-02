@@ -21,7 +21,9 @@ public sealed class JsonSettingsStoreTests : IDisposable
             OutputVolumePercent = 91,
             MicrophoneVolumePercent = 73,
             RecordHotkey = string.Empty,
-            ReplayHotkey = "Shift+Z"
+            ReplayHotkey = "Shift+Z",
+            MicrophoneHotkey = "Shift+X",
+            GalleryHotkey = "Ctrl+G"
         };
 
         await store.SaveAsync(expected);
@@ -35,6 +37,8 @@ public sealed class JsonSettingsStoreTests : IDisposable
         Assert.Equal(expected.MicrophoneVolumePercent, actual.MicrophoneVolumePercent);
         Assert.Equal(expected.RecordHotkey, actual.RecordHotkey);
         Assert.Equal(expected.ReplayHotkey, actual.ReplayHotkey);
+        Assert.Equal(expected.MicrophoneHotkey, actual.MicrophoneHotkey);
+        Assert.Equal(expected.GalleryHotkey, actual.GalleryHotkey);
     }
 
     [Fact]
