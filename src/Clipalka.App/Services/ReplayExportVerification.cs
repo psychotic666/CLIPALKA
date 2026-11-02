@@ -23,6 +23,10 @@ public static class ReplayExportVerification
         profile.Video.Bitrate = 3_000_000;
         var result = await composition.RenderToFileAsync(source, MediaTrimmingPreference.Precise, profile);
         if (result != TranscodeFailureReason.None) throw new InvalidOperationException("Fixture render failed: " + result);
+        var sourceClip = await MediaClip.CreateFromFileAsync(source);
+        var sourceVideo = sourceClip.GetVideoEncodingProperties();
+        var sourceFps = (double)sourceVideo.FrameRate.Numerator / sourceVideo.FrameRate.Denominator;
+        if (Math.Abs(sourceFps - 60) > 1) throw new InvalidOperationException("Fixture has unexpected FPS: " + sourceFps);
 
         var exporter = new ReplayClipExporter();
         foreach (var (name, sources, seconds) in new[]
@@ -36,7 +40,9 @@ public static class ReplayExportVerification
             var clip = await MediaClip.CreateFromFileAsync(await StorageFile.GetFileFromPathAsync(output));
             var video = clip.GetVideoEncodingProperties();
             if (video.Width != 640 || video.Height != 360 || video.FrameRate.Denominator == 0 ||
-                Math.Abs((double)video.FrameRate.Numerator / video.FrameRate.Denominator - 60) > .1 ||
+                // MediaClip reports an average rational rate; short trimmed clips
+                // differ slightly because the endpoints round to whole frames.
+                Math.Abs((double)video.FrameRate.Numerator / video.FrameRate.Denominator - sourceFps) > sourceFps * .01 ||
                 Math.Abs(clip.OriginalDuration.TotalSeconds - seconds) > .3)
                 throw new InvalidOperationException($"Export changed format/duration: {name}, {video.Width}x{video.Height}, {video.FrameRate.Numerator}/{video.FrameRate.Denominator}, {clip.OriginalDuration}");
         }
