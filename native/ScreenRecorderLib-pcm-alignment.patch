@@ -123,6 +123,33 @@ index d7ef5e7..8c3f0a1 100644
 -};
 \ No newline at end of file
 +};
+diff --git a/ScreenRecorderLibNative/CoreAudio.util.cpp b/ScreenRecorderLibNative/CoreAudio.util.cpp
+index c111fd8..c767483 100644
+--- a/ScreenRecorderLibNative/CoreAudio.util.cpp
++++ b/ScreenRecorderLibNative/CoreAudio.util.cpp
+@@ -67,7 +67,12 @@ HRESULT ListAudioDevices(_In_ EDataFlow flow, _Out_ std::vector<AUDIO_DEVICE> *d
+ 	CComPtr<IMMDevice> defaultDevice;
+ 	GetDefaultAudioDevice(flow, &defaultDevice);
+ 	LPWSTR defaultDeviceId = NULL;
+-	defaultDevice->GetId(&defaultDeviceId);
++	// GetDefaultAudioDevice returns S_FALSE and a null pointer when no endpoint
++	// is configured. Enumeration must still work (including an empty device list).
++	if (defaultDevice) {
++		hr = defaultDevice->GetId(&defaultDeviceId);
++		if (FAILED(hr)) return hr;
++	}
+ 	CoTaskMemFreeOnExit releasePwszID(defaultDeviceId);
+ 
+ 
+@@ -111,7 +116,7 @@ HRESULT ListAudioDevices(_In_ EDataFlow flow, _Out_ std::vector<AUDIO_DEVICE> *d
+ 		}
+ 
+ 		LOG_DEBUG(L"    %ls", pv.pwszVal);
+-		bool isDefaultDevice = std::wstring(deviceID) == std::wstring(defaultDeviceId);
++		bool isDefaultDevice = defaultDeviceId != NULL && std::wstring(deviceID) == std::wstring(defaultDeviceId);
+ 		devices->push_back(AUDIO_DEVICE(deviceID, pv.pwszVal, isDefaultDevice));
+ 	}
+ 	return S_OK;
 diff --git a/ScreenRecorderLibNative/RecordingManager.cpp b/ScreenRecorderLibNative/RecordingManager.cpp
 index 0f72681..b54e186 100644
 --- a/ScreenRecorderLibNative/RecordingManager.cpp

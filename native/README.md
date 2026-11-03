@@ -18,6 +18,10 @@ source cannot accumulate more than 96,000 frames (two seconds at the configured
 48 kHz); overflow fails capture instead of silently discarding or corrupting audio.
 No audio effects, gain amplification, de-click filters or codec settings are changed.
 
+The Windows native-load check also exposed an upstream null dereference in audio
+device enumeration when no default endpoint exists. The patch guards this case;
+enumeration still returns the available devices without requiring a default.
+
 ## Windows build
 
 Install Visual Studio 2022 Desktop C++, ATL, C++/CLI v143, a Windows SDK and the
