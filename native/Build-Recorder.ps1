@@ -16,8 +16,8 @@ function Invoke-Checked([string] $Program, [string[]] $Arguments) {
 }
 
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-$vs = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-if (!$vs) { throw 'Install Visual Studio 2022 with Desktop C++, C++/CLI v143, Windows SDK and .NET Framework 4.8 targeting pack.' }
+$vs = & $vswhere -latest -version '[17.0,18.0)' -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 Microsoft.VisualStudio.Component.VC.ATL -property installationPath
+if (!$vs) { throw 'Install Visual Studio 2022 with Desktop C++, ATL, C++/CLI v143, Windows SDK and .NET Framework 4.8 targeting pack.' }
 $msbuild = Join-Path $vs 'MSBuild/Current/Bin/MSBuild.exe'
 $devcmd = Join-Path $vs 'Common7/Tools/VsDevCmd.bat'
 

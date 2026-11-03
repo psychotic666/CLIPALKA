@@ -20,7 +20,7 @@ No audio effects, gain amplification, de-click filters or codec settings are cha
 
 ## Windows build
 
-Install Visual Studio 2022 Desktop C++, C++/CLI v143, a Windows SDK and the
+Install Visual Studio 2022 Desktop C++, ATL, C++/CLI v143, a Windows SDK and the
 .NET Framework 4.8 targeting pack, plus Git and .NET 8 SDK. From the repository root:
 
 ```powershell
