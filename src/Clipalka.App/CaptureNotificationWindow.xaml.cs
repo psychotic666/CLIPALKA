@@ -52,13 +52,16 @@ public partial class CaptureNotificationWindow : Window
     {
         PositionOnActiveScreen();
         var targetLeft = Left;
-        Left += 28;
-        Opacity = 0;
-        BeginAnimation(LeftProperty, new DoubleAnimation(Left, targetLeft, TimeSpan.FromMilliseconds(180))
+        if (SystemParameters.ClientAreaAnimation)
         {
-            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
-        });
-        BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(150)));
+            Left += 20;
+            Opacity = 0;
+            BeginAnimation(LeftProperty, new DoubleAnimation(Left, targetLeft, TimeSpan.FromMilliseconds(180))
+            {
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+            });
+            BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(150)));
+        }
 
         await Task.Delay(2800);
         if (_isDismissing)
@@ -67,6 +70,11 @@ public partial class CaptureNotificationWindow : Window
         }
 
         _isDismissing = true;
+        if (!SystemParameters.ClientAreaAnimation)
+        {
+            Close();
+            return;
+        }
         var fade = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(180));
         fade.Completed += (_, _) => Close();
         BeginAnimation(OpacityProperty, fade);
@@ -88,18 +96,18 @@ public partial class CaptureNotificationWindow : Window
     {
         var (color, icon) = kind switch
         {
-            Services.CaptureNotificationKind.Recording => ("#F04461", "●"),
-            Services.CaptureNotificationKind.Replay => ("#7868FF", "↻"),
-            Services.CaptureNotificationKind.Success => ("#45D483", "✓"),
-            Services.CaptureNotificationKind.Microphone => ("#51B5FF", "●"),
-            Services.CaptureNotificationKind.Error => ("#F04461", "!"),
-            _ => ("#5865F2", "✓")
+            Services.CaptureNotificationKind.Recording => ("DangerBrush", "CaptureIcon"),
+            Services.CaptureNotificationKind.Replay => ("AccentHoverBrush", "ClockIcon"),
+            Services.CaptureNotificationKind.Success => ("SuccessBrush", "CheckIcon"),
+            Services.CaptureNotificationKind.Microphone => ("AccentHoverBrush", "MicIcon"),
+            Services.CaptureNotificationKind.Error => ("DangerBrush", "WarningIcon"),
+            _ => ("AccentHoverBrush", "CheckIcon")
         };
-        var brush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
+        var brush = (Brush)FindResource(color);
         AccentBar.Background = brush;
         StatusDot.Fill = brush;
-        IconText.Foreground = brush;
-        IconText.Text = icon;
+        IconPath.Stroke = brush;
+        IconPath.Data = (Geometry)FindResource(icon);
     }
 
     [DllImport("user32.dll")]

@@ -15,10 +15,17 @@ namespace Clipalka.App;
 
 public partial class MainWindow : Window
 {
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        WindowAppearance.Apply(this);
+    }
+
     // Render the production visual tree on a Windows runner; fixture values never enter normal startup.
     public void RenderUiSamples(string directory)
     {
         Directory.CreateDirectory(directory);
+        GreetingText.Text = "Добрый вечер";
         DisplayComboBox.ItemsSource = new[] { new DeviceOption("test", "AF24H1") };
         OutputDeviceComboBox.ItemsSource = new[] { new DeviceOption("test", "SteelSeries Sonar — Gaming") };
         InputDeviceComboBox.ItemsSource = new[] { new DeviceOption("test", "SteelSeries Sonar — Microphone") };
@@ -47,14 +54,38 @@ public partial class MainWindow : Window
             ("ui-1585", new Size(1585, 992), "home"),
             ("ui-1280", new Size(1280, 800), "home"),
             ("ui-compact", new Size(1180, 760), "home"),
+            ("ui-narrow", new Size(1024, 768), "home"),
+            ("ui-150dpi", new Size(1280, 800), "home"),
             ("ui-gallery", new Size(1280, 800), "gallery"),
             ("ui-diagnostics", new Size(1280, 800), "diagnostics"),
+            ("ui-recording", new Size(1280, 800), "recording"),
+            ("ui-error", new Size(1280, 800), "error"),
             ("ui-empty", new Size(1280, 800), "empty"),
             ("ui-controller", new Size(1280, 800), "controller")
         })
         {
             ShowPage(page == "controller" ? HotkeysPage : page == "gallery" ? AudioPage : page == "diagnostics" ? VideoPage : DashboardPage,
                 page == "controller" ? HotkeysNavButton : page == "gallery" ? ClipsNavButton : page == "diagnostics" ? VideoNavButton : DashboardNavButton);
+            ErrorBanner.Visibility = Visibility.Collapsed;
+            RecordStartGlyph.Visibility = Visibility.Visible;
+            RecordStopGlyph.Visibility = Visibility.Collapsed;
+            RecordButtonTitle.Text = "Запись";
+            CaptureStateText.Text = "Захват активен";
+            CaptureStateText.Foreground = CaptureStateDot.Fill = (Brush)FindResource("SuccessBrush");
+            if (page == "recording")
+            {
+                RecordStartGlyph.Visibility = Visibility.Collapsed;
+                RecordStopGlyph.Visibility = Visibility.Visible;
+                RecordButtonTitle.Text = "00:01:24";
+                CaptureStateText.Text = "Идёт запись";
+                CaptureStateText.Foreground = CaptureStateDot.Fill = (Brush)FindResource("DangerBrush");
+            }
+            if (page == "error")
+            {
+                ErrorBanner.Visibility = Visibility.Visible;
+                ErrorBannerTitle.Text = "Микрофон недоступен";
+                ErrorBannerText.Text = "Проверь подключение устройства и выбери доступный микрофон в разделе «Аудио».";
+            }
             if (page == "controller")
             {
                 ControllerComboBox.ItemsSource = new[] { new ControllerDevice("test", "Wireless Controller (DualSense)"), new ControllerDevice("test-flydigi", "Flydigi (XInput)") };
@@ -78,24 +109,58 @@ public partial class MainWindow : Window
             root.UpdateLayout();
             var hintBottom = RecordHotkeyHint.TransformToAncestor(CaptureActionsGrid)
                 .Transform(new Point(0, RecordHotkeyHint.ActualHeight)).Y;
-            if ((page is "home" or "empty") && (hintBottom > CaptureActionsGrid.ActualHeight || Math.Abs(ReplayButton.ActualHeight - 84) > 0.1))
+            if ((page is "home" or "empty" or "recording" or "error") && (hintBottom > CaptureActionsGrid.ActualHeight || Math.Abs(ReplayButton.ActualHeight - 84) > 0.1))
                 throw new InvalidOperationException("Capture action layout clips its controls.");
-            if (page is "home" or "empty")
+            if (page is "home" or "empty" or "recording" or "error")
             {
                 var hintBaselines = new[] { RecordHotkeyHint, ReplayHotkeyHint, MicrophoneHotkeyHint }
                     .Select(hint => hint.TransformToAncestor(CaptureActionsGrid).Transform(new Point(0, hint.ActualHeight)).Y).ToArray();
                 if (hintBaselines.Max() - hintBaselines.Min() > 2 || hintBaselines.Max() > CaptureActionsGrid.ActualHeight)
                     throw new InvalidOperationException("Action shortcuts must share a visible baseline at every window size.");
             }
-            var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)size.Width, (int)size.Height, 96, 96, PixelFormats.Pbgra32);
+            var dpi = name == "ui-150dpi" ? 144d : 96d;
+            var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)(size.Width * dpi / 96), (int)(size.Height * dpi / 96), dpi, dpi, PixelFormats.Pbgra32);
             bitmap.Render(root);
             var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
             encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
             using var file = File.Create(Path.Combine(directory, name + ".png"));
             encoder.Save(file);
         }
+        foreach (var (name, kind, title, message) in new[]
+        {
+            ("toast-replay", CaptureNotificationKind.Replay, "Replay сохранён", "Rocket League · последние 30 секунд"),
+            ("toast-recording", CaptureNotificationKind.Recording, "Запись началась", "Rocket League · нажми хоткей, чтобы остановить"),
+            ("toast-success", CaptureNotificationKind.Success, "Запись сохранена", "Твой момент уже в папке с клипами"),
+            ("toast-error", CaptureNotificationKind.Error, "Не удалось сохранить клип", "Проверь свободное место в папке записей")
+        })
+        {
+            var toast = new CaptureNotificationWindow(kind, title, message);
+            RenderDetachedWindow(toast, name, directory);
+            toast.Close();
+        }
+        var indicator = new RecordingIndicatorWindow();
+        RenderDetachedWindow(indicator, "recording-indicator", directory);
+        indicator.Close();
         _trayNotifications.Dispose();
         _captureNotifications.Dispose();
+    }
+
+    private static void RenderDetachedWindow(Window window, string name, string directory)
+    {
+        var visual = (FrameworkElement)window.Content;
+        window.Content = null;
+        var size = new Size(window.Width, window.Height);
+        visual.Width = size.Width;
+        visual.Height = size.Height;
+        visual.Measure(size);
+        visual.Arrange(new Rect(size));
+        visual.UpdateLayout();
+        var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)size.Width, (int)size.Height, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(visual);
+        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+        using var file = File.Create(Path.Combine(directory, name + ".png"));
+        encoder.Save(file);
     }
 
     private const int RecordHotkeyId = 1001;
@@ -127,7 +192,16 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        GreetingText.Text = "Центр захвата";
+        Width = Math.Min(Width, SystemParameters.WorkArea.Width - 24);
+        Height = Math.Min(Height, SystemParameters.WorkArea.Height - 24);
+        GreetingText.Text = DateTime.Now.Hour switch
+        {
+            >= 6 and < 12 => "Доброе утро",
+            >= 12 and < 18 => "Добрый день",
+            >= 18 and < 23 => "Добрый вечер",
+            _ => "Доброй ночи"
+        };
+        ShowPage(DashboardPage, DashboardNavButton);
         foreach (var field in new[] { OutputPathTextBox, RecordHotkeyTextBox, ReplayHotkeyTextBox, MicrophoneHotkeyTextBox, GalleryHotkeyTextBox })
             field.TextChanged += SettingsFieldChanged;
         foreach (var field in new[] { DisplayComboBox, FpsComboBox, OutputDeviceComboBox, InputDeviceComboBox })
@@ -449,9 +523,10 @@ public partial class MainWindow : Window
         {
             var isSelected = ReferenceEquals(button, selectedNavigationButton);
             button.Background = isSelected ? (Brush)FindResource("SidebarSelectedBrush") : Brushes.Transparent;
-            button.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(isSelected ? "#FFFFFF" : "#A4AFC2"));
-            button.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(isSelected ? "#8B5CF6" : "#00000000"));
-            button.BorderThickness = isSelected ? new Thickness(3, 0, 0, 0) : new Thickness(0);
+            button.Foreground = (Brush)FindResource(isSelected ? "TextBrush" : "MutedBrush");
+            button.BorderBrush = isSelected ? (Brush)FindResource("AccentBrush") : Brushes.Transparent;
+            button.BorderThickness = new Thickness(2, 0, 0, 0);
+            System.Windows.Automation.AutomationProperties.SetItemStatus(button, isSelected ? "Выбрано" : "");
         }
     }
 
@@ -552,12 +627,18 @@ public partial class MainWindow : Window
     {
         // Keep text at its real size. WPF handles display DPI; the page scrolls vertically.
         ShellRoot.LayoutTransform = Transform.Identity;
-        SidebarColumn.Width = new GridLength(size.Width < 1440 ? 200 : 230);
-        DashboardRightColumn.Width = new GridLength(size.Width < 1440 ? 350 : 405);
-        DashboardGapColumn.Width = new GridLength(20);
-        CapturePreviewBorder.Height = size.Height < 850 ? 180 : 250;
-        DashboardHeadingGrid.Height = size.Height < 850 ? 80 : 90;
-        System.Windows.Shell.WindowChrome.GetWindowChrome(this).CaptionHeight = 70;
+        var stacked = size.Width < 1180;
+        SidebarColumn.Width = new GridLength(size.Width < 1360 ? 184 : 216);
+        DashboardRightColumn.Width = new GridLength(stacked ? 0 : size.Width < 1360 ? 326 : 384);
+        DashboardGapColumn.Width = new GridLength(stacked ? 0 : size.Width < 1360 ? 20 : 24);
+        Grid.SetColumnSpan(DashboardMainPanel, stacked ? 3 : 1);
+        Grid.SetColumn(DashboardSettingsRail, stacked ? 0 : 2);
+        Grid.SetColumnSpan(DashboardSettingsRail, stacked ? 3 : 1);
+        Grid.SetRow(DashboardSettingsRail, stacked ? 2 : 0);
+        DashboardRailGapRow.Height = new GridLength(stacked ? 24 : 0);
+        CapturePreviewBorder.Height = size.Height < 850 ? 190 : 300;
+        DashboardHeadingGrid.Height = size.Height < 850 ? 84 : 92;
+        System.Windows.Shell.WindowChrome.GetWindowChrome(this).CaptionHeight = 64;
         return 1;
     }
 
@@ -734,7 +815,7 @@ public partial class MainWindow : Window
             : !_recordingService.IsReplayBuffering
             ? "Источник не выбран"
             : _recordingService.ReplayCaptureName ?? "Источник определяется";
-        CaptureStateText.Text = recording ? "Идёт запись · " + _recordingService.RecordingCaptureName : _recordingService.IsReplayBuffering ? "Захват активен" : "Ожидание захвата";
+        CaptureStateText.Text = recording ? "Идёт запись" : _recordingService.IsReplayBuffering ? "Захват активен" : "Ожидание захвата";
         CaptureStateText.Foreground = CaptureStateDot.Fill = (Brush)FindResource(recording ? "DangerBrush" : _recordingService.IsReplayBuffering ? "SuccessBrush" : "SubtleBrush");
         CaptureDescriptionText.Text = recording ? "Нажми квадрат, чтобы остановить и сохранить" : !_recordingService.IsReplayBuffering ? "Replay-буфер выключен" : _recordingService.IsReplayCapturingApplication ? "Игра запущена и отслеживается" : "Записывается выбранный монитор";
         ReplayButton.IsEnabled = _recordingService.IsReplayBuffering && !_isBusy;
@@ -768,6 +849,7 @@ public partial class MainWindow : Window
     private void ShowError(string title, Exception exception)
     {
         SetStatus(exception.Message);
+        ErrorBannerTitle.Text = title;
         ErrorBannerText.Text = exception.Message;
         ErrorBanner.Visibility = Visibility.Visible;
         _captureNotifications.Show(CaptureNotificationKind.Error, title, exception.Message);
