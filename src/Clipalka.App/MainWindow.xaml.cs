@@ -40,12 +40,14 @@ public partial class MainWindow : Window
         CaptureDescriptionText.Text = "Игра запущена и отслеживается";
         CaptureStateDot.Fill = (Brush)FindResource("SuccessBrush");
         CaptureStateText.Foreground = (Brush)FindResource("SuccessBrush");
+        ReplayStatusText.Text = "Replay активен";
+        ReplayStatusDot.Fill = (Brush)FindResource("SuccessBrush");
         ToggleReplayButton.Content = "Остановить replay";
         CaptureQualityText.Text = "H.264 · 120 FPS · Stereo";
         AudioSummaryText.Text = "Аудио: Sonar";
         MicrophoneHotkeyHint.Text = "Shift + X";
         var thumbnail = new System.Windows.Media.Imaging.BitmapImage(new Uri("pack://application:,,,/Assets/studio-demo.png"));
-        CapturePreviewImage.Source = thumbnail;
+        CapturePreviewBrush.ImageSource = thumbnail;
         PreviewEmptyPanel.Visibility = Visibility.Collapsed;
         PreviewCaptionText.Text = "Последний сохранённый клип · Rocket League";
         var titles = new[] { "Решающий гол", "Эффектное спасение", "Удачный пас" };
@@ -69,6 +71,7 @@ public partial class MainWindow : Window
             ("ui-diagnostics", new Size(1280, 800), "diagnostics"),
             ("ui-audio", new Size(1280, 800), "audio"),
             ("ui-recording", new Size(1280, 800), "recording"),
+            ("ui-muted", new Size(1280, 800), "muted"),
             ("ui-error", new Size(1280, 800), "error"),
             ("ui-empty", new Size(1280, 800), "empty"),
             ("ui-controller", new Size(1280, 800), "controller")
@@ -80,6 +83,11 @@ public partial class MainWindow : Window
             RecordStartGlyph.Visibility = Visibility.Visible;
             RecordStopGlyph.Visibility = Visibility.Collapsed;
             RecordButtonTitle.Text = "Начать запись";
+            RecordButton.Background = (Brush)FindResource("StudioSurfaceBrush");
+            MicrophoneButtonTitle.Text = "Микрофон включён";
+            MicrophoneIcon.Stroke = (Brush)FindResource("SuccessBrush");
+            MicrophoneToggleTrack.Background = (Brush)FindResource("SuccessBrush");
+            MicrophoneToggleThumb.HorizontalAlignment = HorizontalAlignment.Right;
             CaptureStateText.Text = "Replay активен";
             CaptureStateText.Foreground = CaptureStateDot.Fill = (Brush)FindResource("SuccessBrush");
             if (page == "recording")
@@ -87,8 +95,16 @@ public partial class MainWindow : Window
                 RecordStartGlyph.Visibility = Visibility.Collapsed;
                 RecordStopGlyph.Visibility = Visibility.Visible;
                 RecordButtonTitle.Text = "00:01:24";
+                RecordButton.Background = (Brush)FindResource("DangerSurfaceBrush");
                 CaptureStateText.Text = "Идёт запись";
                 CaptureStateText.Foreground = CaptureStateDot.Fill = (Brush)FindResource("DangerBrush");
+            }
+            if (page == "muted")
+            {
+                MicrophoneButtonTitle.Text = "Микрофон выключен";
+                MicrophoneIcon.Stroke = (Brush)FindResource("MutedBrush");
+                MicrophoneToggleTrack.Background = (Brush)FindResource("PanelHoverBrush");
+                MicrophoneToggleThumb.HorizontalAlignment = HorizontalAlignment.Left;
             }
             if (page == "error")
             {
@@ -105,7 +121,7 @@ public partial class MainWindow : Window
             }
             if (page == "empty")
             {
-                CapturePreviewImage.Source = null;
+                CapturePreviewBrush.ImageSource = null;
                 PreviewEmptyPanel.Visibility = Visibility.Visible;
                 PreviewCaptionText.Text = "Предпросмотр появится после сохранения клипа";
                 RecentClipsItemsControl.ItemsSource = null;
@@ -659,7 +675,7 @@ public partial class MainWindow : Window
         _galleryClips = await Task.Run(() => RecentClipService.Load(outputDirectory, 100));
         RecentClipsItemsControl.ItemsSource = _galleryClips.Take(3).ToList();
         RecentClipsEmptyText.Visibility = _galleryClips.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        CapturePreviewImage.Source = _galleryClips.FirstOrDefault()?.Thumbnail;
+        CapturePreviewBrush.ImageSource = _galleryClips.FirstOrDefault()?.Thumbnail;
         PreviewEmptyPanel.Visibility = _galleryClips.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         PreviewCaptionText.Text = _galleryClips.Count == 0 ? "Предпросмотр появится после сохранения клипа" : "Последний сохранённый клип · " + _galleryClips[0].Title;
         OpenLatestClipButton.Tag = _galleryClips.FirstOrDefault()?.FilePath;
@@ -885,6 +901,8 @@ public partial class MainWindow : Window
         MicrophoneIcon.Stroke = (Brush)FindResource(_recordingService.IsMicrophoneMuted ? "MutedBrush" : "SuccessBrush");
         MicrophoneToggleTrack.Background = (Brush)FindResource(_recordingService.IsMicrophoneMuted ? "PanelHoverBrush" : "SuccessBrush");
         MicrophoneToggleThumb.HorizontalAlignment = _recordingService.IsMicrophoneMuted ? HorizontalAlignment.Left : HorizontalAlignment.Right;
+        System.Windows.Automation.AutomationProperties.SetItemStatus(MicrophoneButton, _recordingService.IsMicrophoneMuted ? "Микрофон выключен" : "Микрофон включён");
+        System.Windows.Automation.AutomationProperties.SetName(RecordButton, recording ? "Остановить и сохранить запись" : "Начать запись");
         AudioSummaryText.Text = OutputDeviceComboBox.SelectedItem is DeviceOption output ? "Аудио: " + output.DisplayName : "Аудио: системное устройство";
         ReplayStatusText.Text = _recordingService.IsReplayBuffering ? "Replay активен" : "Replay выключен";
         if (recording) ReplayStatusText.Text = "Идёт запись";
