@@ -15,11 +15,13 @@
     <FileVersion>0.9.3.1</FileVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\clipalka.ico</ApplicationIcon>
+    <ClipalkaRecorderPath>$(MSBuildProjectDirectory)/../../artifacts/native/ScreenRecorderLib.dll</ClipalkaRecorderPath>
   </PropertyGroup>
   <ItemGroup>
     <Resource Include="Assets\clipalka-icon.png" />
     <Resource Include="Assets\clipalka.ico" />
     <Resource Include="Assets\capture-preview.png" />
+    <Content Include="../../native/LICENSE-ScreenRecorderLib.txt" Link="LICENSE-ScreenRecorderLib.txt" CopyToOutputDirectory="PreserveNewest" />
     <Using Remove="System.Drawing" />
     <Using Remove="System.Windows.Forms" />
   </ItemGroup>
@@ -27,4 +29,17 @@
     <ProjectReference Include="..\Clipalka.Core\Clipalka.Core.csproj" />
     <PackageReference Include="ScreenRecorderLib" Version="7.0.1" />
   </ItemGroup>
+  <!-- SRL's NuGet target injects the stock reference. Replace it after injection,
+       so restore/build/publish all select the patched binary consistently. -->
+  <Target Name="SelectClipalkaRecorder" BeforeTargets="ResolveAssemblyReferences" DependsOnTargets="InjectReference">
+    <Error Condition="'$(OS)' == 'Windows_NT' and !Exists('$(ClipalkaRecorderPath)')"
+           Text="Build the patched recorder first: pwsh -File native/Build-Recorder.ps1" />
+    <ItemGroup Condition="Exists('$(ClipalkaRecorderPath)')">
+      <Reference Remove="ScreenRecorderLib" />
+      <Reference Include="ScreenRecorderLib">
+        <HintPath>$(ClipalkaRecorderPath)</HintPath>
+        <Private>true</Private>
+      </Reference>
+    </ItemGroup>
+  </Target>
 </Project>

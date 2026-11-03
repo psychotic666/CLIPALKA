@@ -17,6 +17,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
+      - name: Build patched native audio recorder and regression test
+        shell: pwsh
+        run: ./native/Build-Recorder.ps1
       - name: Restore
         run: dotnet restore CLIPALKA.sln
       - name: Test
@@ -28,6 +31,20 @@ jobs:
       - name: Inventory installed application files
         shell: pwsh
         run: ./installer/New-InstallManifest.ps1 -SourceDirectory publish/win-x64
+      - name: Verify published native audio module
+        shell: pwsh
+        run: |
+          $builtHash = (Get-FileHash artifacts/native/ScreenRecorderLib.dll).Hash
+          $publishedHash = (Get-FileHash publish/win-x64/ScreenRecorderLib.dll).Hash
+          if ($builtHash -ne $publishedHash) { throw 'Published native recorder does not match patched build' }
+          $audioPath = Join-Path $PWD 'native-audio-verification'
+          dotnet publish/win-x64/CLIPALKA.dll --verify-native-audio $audioPath
+          if ($LASTEXITCODE -ne 0) {
+            if (Test-Path native-audio-verification/error.txt) { Get-Content native-audio-verification/error.txt }
+            throw "Native audio verification failed: $LASTEXITCODE"
+          }
+          Get-Content native-audio-verification/result.txt
+          Copy-Item artifacts/native/build-info.json native-audio-verification
       - name: Render WPF interface samples
         shell: pwsh
         run: |
@@ -63,6 +80,12 @@ jobs:
         with:
           name: CLIPALKA-ui-preview
           path: ui-preview
+      - name: Upload native audio verification
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: CLIPALKA-native-audio-verification
+          path: native-audio-verification
       - name: Upload export verification evidence
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4

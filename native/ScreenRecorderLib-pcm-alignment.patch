@@ -1,0 +1,137 @@
+diff --git a/ScreenRecorderLibNative/AudioManager.cpp b/ScreenRecorderLibNative/AudioManager.cpp
+index b0f86fe..feb7c08 100644
+--- a/ScreenRecorderLibNative/AudioManager.cpp
++++ b/ScreenRecorderLibNative/AudioManager.cpp
+@@ -93,6 +93,7 @@ bool AudioManager::IsAudioCaptureActive(WASAPICapture *source)
+ 
+ void AudioManager::ClearRecordedBytes()
+ {
++	m_PcmAlignment.Clear();
+ 	for each (WASAPICapture * capture in m_AudioCaptures) {
+ 		capture->ClearRecordedBytes();
+ 	}
+@@ -110,6 +111,7 @@ HRESULT AudioManager::StopCapture()
+ 	EnterCriticalSection(&m_CriticalSection);
+ 	LeaveCriticalSectionOnExit leaveOnExit(&m_CriticalSection);
+ 	m_IsCaptureEnabled = false;
++	m_PcmAlignment.Clear();
+ 	return ConfigureAudioCapture(true);
+ }
+ 
+@@ -118,6 +120,7 @@ HRESULT AudioManager::PauseCapture()
+ 	EnterCriticalSection(&m_CriticalSection);
+ 	LeaveCriticalSectionOnExit leaveOnExit(&m_CriticalSection);
+ 	m_IsCapturePaused = true;
++	m_PcmAlignment.Clear();
+ 	return ConfigureAudioCapture(true);
+ }
+ 
+@@ -269,6 +272,7 @@ FRAME_AUDIO_DATA *AudioManager::GrabAudioSamples()
+ 	}
+ 
+ 	FRAME_AUDIO_DATA *audioData = MixAudioSamples(audioSamples);
++	if (!audioData) return nullptr;
+ 	audioData->QpcTimestamp = qpcTimestamp;
+ 	size_t unpaddedAudioSize = audioData->Data.size();
+ 	if (!IsAnyAudioCapturesActive()) {
+@@ -320,15 +324,15 @@ INT64 AudioManager::GetNextAudioSampleDuration()
+ FRAME_AUDIO_DATA *AudioManager::MixAudioSamples(_In_ std::map<WASAPICapture *, std::vector<BYTE>> &audioSamples)
+ {
+ 	if (audioSamples.empty()) {
++		m_PcmAlignment.Clear();
+ 		return new FRAME_AUDIO_DATA{};
+ 	}
+ 	std::vector<StreamData> streams{};
+ 	streams.reserve(audioSamples.size());
+-	size_t maxSize = 0;
++	std::map<std::wstring, PcmBlock> blocks;
+ 	for (auto &pair : audioSamples) {
+ 		WASAPICapture *capture = pair.first;
+ 		std::vector<BYTE> &data = pair.second;
+-		maxSize = max(maxSize, data.size());
+ 
+ 		if (capture->GetFlow() == eCapture
+ 		&& m_AudioOptions
+@@ -345,12 +349,30 @@ FRAME_AUDIO_DATA *AudioManager::MixAudioSamples(_In_ std::map<WASAPICapture *, s
+ 				LOG_ERROR("Error downmixing audio input device %s: %s.", capture->GetDeviceFriendlyName().c_str(), s2ws(e.what()).c_str());
+ 			}
+ 		}
+-		streams.push_back({
+-			capture->GetAudioCaptureSource()->ID,
+-			reinterpret_cast<const short *>(data.data()),
+-			data.size() / 2,
+-			capture->GetAudioCaptureSource()->OutputVolumeModifier
+-		});
++		if (data.size() % (sizeof(short) * GetAudioOptions()->GetAudioChannels()) != 0) {
++			LOG_ERROR("Partial PCM frame from audio capture device");
++			return nullptr;
++		}
++		PcmBlock block;
++		block.samples.resize(data.size() / sizeof(short));
++		if (!data.empty()) memcpy(block.samples.data(), data.data(), data.size());
++		block.active = IsAudioCaptureActive(capture);
++		blocks.emplace(capture->GetAudioCaptureSource()->ID, std::move(block));
++	}
++	std::map<std::wstring, std::vector<short>> aligned;
++	try {
++		aligned = m_PcmAlignment.Align(blocks, GetAudioOptions()->GetAudioChannels());
++	}
++	catch (const std::exception &error) {
++		LOG_ERROR("PCM alignment failed: %s", s2ws(error.what()).c_str());
++		return nullptr;
++	}
++	size_t maxSize = 0;
++	for (auto &pair : audioSamples) {
++		auto *capture = pair.first;
++		const auto &samples = aligned.at(capture->GetAudioCaptureSource()->ID);
++		maxSize = samples.size() * sizeof(short);
++		streams.push_back({ capture->GetAudioCaptureSource()->ID, samples.data(), samples.size(), capture->GetAudioCaptureSource()->OutputVolumeModifier });
+ 	}
+ 	const size_t maxSamples = maxSize / 2;
+ 	const size_t streamCount = streams.size();
+@@ -508,4 +530,4 @@ std::vector<BYTE> AudioManager::DownmixToMono(
+ 	}
+ 
+ 	return out;
+-}
+\ No newline at end of file
++}
+diff --git a/ScreenRecorderLibNative/AudioManager.h b/ScreenRecorderLibNative/AudioManager.h
+index d7ef5e7..8c3f0a1 100644
+--- a/ScreenRecorderLibNative/AudioManager.h
++++ b/ScreenRecorderLibNative/AudioManager.h
+@@ -4,6 +4,7 @@
+ #include "CommonTypes.h"
+ #include <map>
+ #include "TimelineManager.h"
++#include "PcmBlockAligner.h"
+ class AudioManager
+ {
+ public:
+@@ -33,6 +34,7 @@ private:
+ 	TimelineManager *m_TimelineManager;
+ 	bool m_IsCaptureEnabled;
+ 	bool m_IsCapturePaused;
++	PcmBlockAligner m_PcmAlignment;
+ 	AUDIO_OPTIONS *GetAudioOptions() { return m_AudioOptions.get(); }
+ 
+ 	HRESULT StartDeviceCapture(WASAPICapture *pCapture);
+@@ -59,4 +61,4 @@ private:
+ 	/// <param name="videoFrameDuration"></param>
+ 	/// <returns></returns>
+ 	bool PadAudio(_Inout_ std::vector<BYTE> &audioData, _In_ INT64 videoFramePos, _In_ INT64 videoFrameDuration);
+-};
+\ No newline at end of file
++};
+diff --git a/ScreenRecorderLibNative/RecordingManager.cpp b/ScreenRecorderLibNative/RecordingManager.cpp
+index 0f72681..b54e186 100644
+--- a/ScreenRecorderLibNative/RecordingManager.cpp
++++ b/ScreenRecorderLibNative/RecordingManager.cpp
+@@ -621,6 +621,7 @@ REC_RESULT RecordingManager::StartRecorderLoop(_In_ const std::vector<RECORDING_
+ 		std::unique_ptr<FRAME_AUDIO_DATA> audioPacket = nullptr;
+ 		if (GetAudioOptions()->IsAudioEnabled()) {
+ 			audioPacket.reset(m_AudioManager->GrabAudioSamples());
++			if (!audioPacket) return CAPTURE_RESULT(E_FAIL, L"Audio packet alignment failed; check the capture device connection.");
+ 			if (RecordingNewAudioCallback != nullptr && !m_IsDestructing) {
+ 				try {
+ 					RecordingNewAudioCallback(audioPacket->Info.get());
