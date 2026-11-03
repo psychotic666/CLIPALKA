@@ -124,7 +124,8 @@ public partial class MainWindow : Window
                     .Transform(new Point(0, RecentClipsItemsControl.ActualHeight)).Y;
                 var settingsBottom = DashboardSettingsRail.TransformToAncestor(DashboardPage)
                     .Transform(new Point(0, DashboardSettingsRail.ActualHeight)).Y;
-                if (Math.Max(clipsBottom, settingsBottom) > DashboardPage.ActualHeight - 12)
+                if (Math.Max(clipsBottom, settingsBottom) > DashboardPage.ActualHeight - 12
+                    || DashboardPage.ExtentHeight > DashboardPage.ViewportHeight + 1)
                     throw new InvalidOperationException("Default dashboard must show recent clips and all settings without scrolling.");
             }
             var dpi = name == "ui-150dpi" ? 144d : 96d;
@@ -158,13 +159,15 @@ public partial class MainWindow : Window
     private void VerifyKeyboardAndDevicePopup(FrameworkElement root, string directory)
     {
         // Host only the detached visual tree: normal app startup/capture is never run.
-        var size = new Size(1280, 800);
+        var workArea = SystemParameters.WorkArea;
+        var size = new Size(Math.Min(1280, workArea.Width - 24), Math.Min(800, workArea.Height - 24));
         ApplyWindowScale(size);
         root.Width = size.Width;
         root.Height = size.Height;
         ErrorBanner.Visibility = Visibility.Collapsed;
         ShowPage(DashboardPage, DashboardNavButton);
         var host = new Window { Content = root, Width = size.Width, Height = size.Height,
+            Left = workArea.Left + 12, Top = workArea.Top + 12,
             WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false };
         try
         {
@@ -175,6 +178,7 @@ public partial class MainWindow : Window
             RecordButton.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
             if (!ReplayButton.IsKeyboardFocused)
                 throw new InvalidOperationException("Tab must reach replay from the record action.");
+            host.UpdateLayout();
             SaveVisual(root, "ui-keyboard", directory);
 
             ShowPage(HotkeysPage, HotkeysNavButton);
