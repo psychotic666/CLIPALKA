@@ -1,53 +1,57 @@
-# CLIPALKA — Windows capture studio
+# CLIPALKA — selected Studio concept
 
-Native C# / WPF, .NET 8. Direction: quiet Fluent-inspired dark desktop workspace,
-informed by the user's preferred purple capture dashboard. This is an implemented
-application theme, not a marketing page or an image used in place of controls.
+The user selected **Studio**, the last of three generated concepts. The approved
+composition is saved in [studio-reference.png](studio-reference.png).
+Implement the composition as functional C# / WPF controls under .NET 8.
 
-## Decisions
+## Product structure
 
-- Graphite canvas #0C0D12, sidebar #111218, content #0E0F15.
-- Raised surface #191A22, input #22242E, boundary #343744.
-- Primary text #F5F5FA, secondary #B1B2C4, muted #989BAD.
-- Replay accent #8055EA, accent text #AD91FF, focus #C2AAFF.
-- Record #FF506C, capture ready #4DE3B1, always paired with a text state.
-- Segoe UI Variable Text / Segoe UI. Page 32, source 20, section 16,
-  controls 14, secondary 13, compact metadata 11–12 DIPs.
-- 4/8 spacing rhythm; cards 14 radius, inputs/buttons 8, preview 10.
-- One primary action: save the last 30 seconds. Record/microphone are secondary
-  circular controls with aligned labels and keyboard shortcut chips.
-- Fixed 64-DIP title bar, 216/184 sidebar, 384/326 settings rail. Below 1180 DIPs
-  the rail moves underneath capture. Minimum window 960×640; initial size is
-  clamped to the Windows work area. One vertical scroll; text is never scaled down.
-- No fake live preview, HDR setting, unsupported FPS or decorative telemetry.
-  The preview is the last saved clip; the empty state says when it appears.
-- One vector icon family and a small vector CP mark; no emoji navigation.
-- Shared theme: src/Clipalka.App/Themes/Studio.xaml. The same tokens style the
-  gallery, recording/settings pages, notifications and recording indicator.
+- Slim 48-DIP Windows title bar. CP wordmark and CLIPALKA on the left.
+- Centered pill navigation: Capture, My clips, Settings. No sidebar.
+- Capture: centered headline and real replay/recording state; a full-width
+  preview of the last saved clip; three rectangular action cards underneath.
+- Actions: start/stop recording, save 30 seconds, microphone toggle. Their actual
+  configured English shortcut hints live inside the controls.
+- Three quick links: capture source settings, audio settings, clips folder.
+- Three wide recent clips, with real thumbnails, filename, saved date and duration.
+- Settings has Video & files, Audio, Keyboard & controller sections. Forms and
+  editable shortcuts appear here, with an explicit Save action.
+- A quiet footer retains capture status, detailed errors/status and replay toggle.
 
-## Interaction
+## Visual system
 
-Keyboard-visible focus, selected navigation marker and full selected device names
-in tooltips. ComboBox popup uses a dark item template and visibly selected item.
-Buttons preserve their primary color on hover. Disabled controls cannot execute.
-No looping UI animation. Toast motion follows Windows ClientAreaAnimation.
-Global hotkey behavior and native capture/audio algorithms remain in their services.
+- Canvas: restrained graphite gradient #22232D → #181A22 → #20212A.
+- Action surfaces: #31333F → #262832, 20-DIP corners, thin #4C4E5B border.
+- Primary replay action and selected top tab: #8B46E8 → #6536D2.
+- Text #F5F5FA, secondary #B1B2C4, focus #C2AAFF, ready #4DE3B1,
+  record #FF506C. State always includes text or a glyph.
+- Segoe UI Variable Text / Segoe UI. Headline 42 (30–34 compact),
+  actions 23 (16–19 compact), metadata 14–16. No whole-window shrinking.
+- Hero 300 DIPs at 1585×992; adaptive 160–340 at other viewport heights.
+- 4/8 spacing rhythm, 16-DIP action/quick-link gaps, 28-DIP page gutters.
+- One stroke icon family. Hover keeps the replay action purple.
 
-## ui-ux-pro-max application
+## Functional details
 
-Applied the verified WPF guidance for resource dictionaries, keyboard navigation,
-semantic controls and AutomationProperties. Applied contrast and focus guidance.
-The initial gaming design-system search overemphasized 3D/marketing layouts;
-the refined desktop-utility search matched layered dark surfaces. Its marketing
-sections, green CTA and web fonts were not adopted: the user reference and Windows
-desktop context call for a purple replay action and native typography.
+The preview uses the latest real saved clip in normal startup. Its Open action
+launches that file through the Windows default video app. It does not pretend
+to be a live capture monitor or an inline video player.
+
+The source name, FPS, mute state and shortcut hints come from the existing
+capture service/settings. Preserve the native PCM continuity fix, game capture
+selection, Bluetooth input services, notifications and installer behavior.
+
+The thumbnail artwork in [Assets/studio-demo.png](../../src/Clipalka.App/Assets/studio-demo.png)
+is used **only** by the explicit --render-ui verification command. No sample clip
+is added to the user's gallery or settings. See [ARTWORK.md](ARTWORK.md) for its
+generation method and prompt. It must never become a fallback for actual recordings.
 
 ## Verification
 
-Render the real WPF visual tree on Windows at 1585×992, 1280×800, 1180×760, 1024×768,
-and 150% DPI,
-plus gallery, recording, controller settings, empty/recording/error states,
-device popup and notification variants. Check shortcut baselines and action
-bounds. Rendering fixtures must never enter normal startup or save user settings.
-Keep native recorder hash/load checks and upgrade/export checks passing.
-Do not publish a release automatically for a design iteration.
+Render real WPF at 1585×992, 1280×800, 1180×760, 1024×768 and 150% DPI.
+Include gallery, video settings, audio settings, controller settings, empty,
+recording and error states, real device popup and keyboard focus.
+Capture and recent clips fit the default viewport; primary actions stay within
+their bounds and shortcut baselines align. Settings sections must all be reachable.
+Keep existing core, native audio, export and upgrade/uninstall checks passing.
+Do not publish a release automatically.

@@ -20,7 +20,7 @@
   <ItemGroup>
     <Resource Include="Assets\clipalka-icon.png" />
     <Resource Include="Assets\clipalka.ico" />
-    <Resource Include="Assets\capture-preview.png" />
+    <Resource Include="Assets\studio-demo.png" />
     <Content Include="../../native/LICENSE-ScreenRecorderLib.txt" Link="LICENSE-ScreenRecorderLib.txt" CopyToOutputDirectory="PreserveNewest" />
     <Using Remove="System.Drawing" />
     <Using Remove="System.Windows.Forms" />

@@ -319,4 +319,70 @@
                 </Track></Grid>
             </ControlTemplate></Setter.Value></Setter>
         </Style>
+
+    <LinearGradientBrush x:Key="StudioCanvasBrush" StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#22232D" Offset="0"/><GradientStop Color="#181A22" Offset="0.5"/><GradientStop Color="#20212A" Offset="1"/></LinearGradientBrush>
+    <LinearGradientBrush x:Key="StudioSurfaceBrush" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#31333F" Offset="0"/><GradientStop Color="#262832" Offset="1"/></LinearGradientBrush>
+    <LinearGradientBrush x:Key="StudioPurpleBrush" StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#8B46E8" Offset="0"/><GradientStop Color="#6536D2" Offset="1"/></LinearGradientBrush>
+    <StreamGeometry x:Key="SaveClipIcon">M12,3 L12,15 M6,9 L12,15 L18,9 M4,15 L4,21 L20,21 L20,15</StreamGeometry>
+    <StreamGeometry x:Key="ChevronRightIcon">M8,4 L16,12 L8,20</StreamGeometry>
+    <ControlTemplate x:Key="StudioPillTemplate" TargetType="Button">
+    <controls:RoundedClipBorder x:Name="Root" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="24" Padding="{TemplateBinding Padding}">
+        <Grid><Border x:Name="Hover" Background="White" Opacity="0"/><ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/></Grid>
+    </controls:RoundedClipBorder>
+    <ControlTemplate.Triggers>
+        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.07"/></Trigger>
+        <Trigger Property="IsPressed" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.13"/></Trigger>
+        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource FocusBrush}"/></Trigger>
+        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.4"/></Trigger>
+    </ControlTemplate.Triggers>
+</ControlTemplate>
+    <ControlTemplate x:Key="StudioActionTemplate" TargetType="Button">
+    <controls:RoundedClipBorder x:Name="Root" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="20" Padding="{TemplateBinding Padding}">
+        <Grid><Border x:Name="Hover" Background="White" Opacity="0"/><ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/></Grid>
+    </controls:RoundedClipBorder>
+    <ControlTemplate.Triggers>
+        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.07"/></Trigger>
+        <Trigger Property="IsPressed" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.13"/></Trigger>
+        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource FocusBrush}"/></Trigger>
+        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.4"/></Trigger>
+    </ControlTemplate.Triggers>
+</ControlTemplate>
+    <ControlTemplate x:Key="StudioQuickTemplate" TargetType="Button">
+    <controls:RoundedClipBorder x:Name="Root" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="12" Padding="{TemplateBinding Padding}">
+        <Grid><Border x:Name="Hover" Background="White" Opacity="0"/><ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/></Grid>
+    </controls:RoundedClipBorder>
+    <ControlTemplate.Triggers>
+        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.07"/></Trigger>
+        <Trigger Property="IsPressed" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.13"/></Trigger>
+        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource FocusBrush}"/></Trigger>
+        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.4"/></Trigger>
+    </ControlTemplate.Triggers>
+</ControlTemplate>
+    <Style x:Key="StudioTab" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Template" Value="{StaticResource StudioPillTemplate}"/>
+        <Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource MutedBrush}"/><Setter Property="Padding" Value="18,4"/>
+        <Setter Property="MinHeight" Value="44"/>
+        <Style.Triggers><Trigger Property="Tag" Value="Selected"><Setter Property="Background" Value="{StaticResource StudioPurpleBrush}"/><Setter Property="Foreground" Value="White"/></Trigger></Style.Triggers>
+    </Style>
+    <Style x:Key="StudioActionButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Template" Value="{StaticResource StudioActionTemplate}"/>
+        <Setter Property="Background" Value="{StaticResource StudioSurfaceBrush}"/><Setter Property="BorderBrush" Value="#4C4E5B"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="Padding" Value="24,12"/>
+        <Setter Property="MinHeight" Value="84"/>
+    </Style>
+    <Style x:Key="StudioReplayButton" TargetType="Button" BasedOn="{StaticResource StudioActionButton}">
+        <Setter Property="Background" Value="{StaticResource StudioPurpleBrush}"/><Setter Property="BorderBrush" Value="#A278EE"/>
+    </Style>
+    <Style x:Key="StudioQuickButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Template" Value="{StaticResource StudioQuickTemplate}"/>
+        <Setter Property="Background" Value="{StaticResource StudioSurfaceBrush}"/><Setter Property="BorderBrush" Value="#4C4E5B"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="20,8"/>
+        <Setter Property="MinHeight" Value="52"/>
+    </Style>
+    <Style x:Key="SettingsTab" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource MutedBrush}"/><Setter Property="FontSize" Value="15"/>
+        <Style.Triggers><Trigger Property="Tag" Value="Selected"><Setter Property="Background" Value="{StaticResource PanelHoverBrush}"/><Setter Property="Foreground" Value="{StaticResource TextBrush}"/><Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/></Trigger></Style.Triggers>
+    </Style>
 </ResourceDictionary>
