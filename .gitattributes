@@ -1,0 +1,2 @@
+# Keep native patches byte-compatible with the pinned upstream source on Windows.
+native/*.patch text eol=lf

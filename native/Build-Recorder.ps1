@@ -21,7 +21,7 @@ if (!$vs) { throw 'Install Visual Studio 2022 with Desktop C++, C++/CLI v143, Wi
 $msbuild = Join-Path $vs 'MSBuild/Current/Bin/MSBuild.exe'
 $devcmd = Join-Path $vs 'Common7/Tools/VsDevCmd.bat'
 
-Invoke-Checked git @('clone', '--depth', '1', '--branch', 'v7.0.1', 'https://github.com/sskodje/ScreenRecorderLib.git', $source)
+Invoke-Checked git @('-c', 'core.autocrlf=false', 'clone', '--depth', '1', '--branch', 'v7.0.1', 'https://github.com/sskodje/ScreenRecorderLib.git', $source)
 $actual = & git -C $source rev-parse HEAD
 if ($LASTEXITCODE -ne 0 -or $actual -ne $revision) { throw "Unexpected ScreenRecorderLib revision: $actual" }
 $patch = Join-Path $PSScriptRoot 'ScreenRecorderLib-pcm-alignment.patch'
