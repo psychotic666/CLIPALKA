@@ -17,6 +17,13 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
+      - name: Validate release version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          [xml]$project = Get-Content src/Clipalka.App/Clipalka.App.csproj
+          $version = $project.Project.PropertyGroup.Version | Where-Object { $_ }
+          if ($env:GITHUB_REF_NAME -ne "v$version") { throw "Tag does not match application version $version" }
       - name: Build patched native audio recorder and regression test
         shell: pwsh
         run: ./native/Build-Recorder.ps1
@@ -115,11 +122,26 @@ jobs:
           Invoke-WebRequest https://aka.ms/vs/17/release/vc_redist.x64.exe -OutFile artifacts/VC_redist.x64.exe
       - name: Build installer
         if: startsWith(github.ref, 'refs/tags/v')
-        run: choco install innosetup --yes --no-progress && iscc installer/CLIPALKA.iss
+        shell: pwsh
+        run: |
+          [xml]$project = Get-Content src/Clipalka.App/Clipalka.App.csproj
+          $version = $project.Project.PropertyGroup.Version | Where-Object { $_ }
+          $fileVersion = $project.Project.PropertyGroup.FileVersion | Where-Object { $_ }
+          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' "/DMyAppVersion=$version" "/DMyAppFileVersion=$fileVersion" installer/CLIPALKA.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Release installer compilation failed' }
       - name: Create portable archive
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
         run: Compress-Archive -Path publish/win-x64/* -DestinationPath artifacts/CLIPALKA-win-x64.zip
+      - name: Compute release checksums
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $files = 'artifacts/CLIPALKA-Setup.exe', 'artifacts/CLIPALKA-win-x64.zip'
+          $files | ForEach-Object {
+            $hash = Get-FileHash $_ -Algorithm SHA256
+            "$($hash.Hash.ToLowerInvariant())  $(Split-Path $_ -Leaf)"
+          } | Set-Content artifacts/SHA256SUMS.txt -Encoding ascii
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
@@ -130,7 +152,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+          draft: true
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
             artifacts/CLIPALKA-Setup.exe
             artifacts/CLIPALKA-win-x64.zip
+            artifacts/SHA256SUMS.txt

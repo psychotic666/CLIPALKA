@@ -4,7 +4,10 @@
   #define MyAppName "CLIPALKA"
 #endif
 #ifndef MyAppVersion
-  #define MyAppVersion "0.9.3"
+  #define MyAppVersion "0.9.3-rc.2"
+#endif
+#ifndef MyAppFileVersion
+  #define MyAppFileVersion "0.9.3.1"
 #endif
 #ifndef MyAppId
   #define MyAppId "{{1B00B859-694D-4C01-AE8C-23148971155A}"
@@ -19,6 +22,7 @@
 AppId={#MyAppId}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
+VersionInfoVersion={#MyAppFileVersion}
 AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
