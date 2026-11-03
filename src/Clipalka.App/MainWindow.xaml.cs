@@ -118,6 +118,15 @@ public partial class MainWindow : Window
                 if (hintBaselines.Max() - hintBaselines.Min() > 2 || hintBaselines.Max() > CaptureActionsGrid.ActualHeight)
                     throw new InvalidOperationException("Action shortcuts must share a visible baseline at every window size.");
             }
+            if (name == "ui-1585")
+            {
+                var clipsBottom = RecentClipsItemsControl.TransformToAncestor(DashboardPage)
+                    .Transform(new Point(0, RecentClipsItemsControl.ActualHeight)).Y;
+                var settingsBottom = DashboardSettingsRail.TransformToAncestor(DashboardPage)
+                    .Transform(new Point(0, DashboardSettingsRail.ActualHeight)).Y;
+                if (Math.Max(clipsBottom, settingsBottom) > DashboardPage.ActualHeight - 12)
+                    throw new InvalidOperationException("Default dashboard must show recent clips and all settings without scrolling.");
+            }
             var dpi = name == "ui-150dpi" ? 144d : 96d;
             var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)(size.Width * dpi / 96), (int)(size.Height * dpi / 96), dpi, dpi, PixelFormats.Pbgra32);
             bitmap.Render(root);
@@ -141,8 +150,63 @@ public partial class MainWindow : Window
         var indicator = new RecordingIndicatorWindow();
         RenderDetachedWindow(indicator, "recording-indicator", directory);
         indicator.Close();
+        VerifyKeyboardAndDevicePopup(root, directory);
         _trayNotifications.Dispose();
         _captureNotifications.Dispose();
+    }
+
+    private void VerifyKeyboardAndDevicePopup(FrameworkElement root, string directory)
+    {
+        // Host only the detached visual tree: normal app startup/capture is never run.
+        var size = new Size(1280, 800);
+        ApplyWindowScale(size);
+        root.Width = size.Width;
+        root.Height = size.Height;
+        ErrorBanner.Visibility = Visibility.Collapsed;
+        ShowPage(DashboardPage, DashboardNavButton);
+        var host = new Window { Content = root, Width = size.Width, Height = size.Height,
+            WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false };
+        try
+        {
+            host.Show();
+            host.Activate();
+            host.UpdateLayout();
+            Keyboard.Focus(RecordButton);
+            RecordButton.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
+            if (!ReplayButton.IsKeyboardFocused)
+                throw new InvalidOperationException("Tab must reach replay from the record action.");
+            SaveVisual(root, "ui-keyboard", directory);
+
+            ShowPage(HotkeysPage, HotkeysNavButton);
+            ControllerComboBox.Focus();
+            ControllerComboBox.IsDropDownOpen = true;
+            host.UpdateLayout();
+            var popup = (System.Windows.Controls.Primitives.Popup)ControllerComboBox.Template.FindName("PART_Popup", ControllerComboBox);
+            var popupVisual = (FrameworkElement)popup.Child;
+            popupVisual.UpdateLayout();
+            if (ControllerComboBox.ItemContainerGenerator.ContainerFromIndex(0) is not ComboBoxItem { IsSelected: true })
+                throw new InvalidOperationException("Device popup must expose its selected item.");
+            SaveVisual(popupVisual, "device-popup", directory);
+            ControllerComboBox.IsDropDownOpen = false;
+            File.WriteAllText(Path.Combine(directory, "interaction-verification.txt"),
+                "PASS: Tab reaches replay from recording; selected controller is exposed by real ComboBoxItem; native popup rendered.");
+        }
+        finally
+        {
+            ControllerComboBox.IsDropDownOpen = false;
+            host.Content = null;
+            host.Close();
+        }
+    }
+
+    private static void SaveVisual(FrameworkElement visual, string name, string directory)
+    {
+        var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)Math.Ceiling(visual.ActualWidth), (int)Math.Ceiling(visual.ActualHeight), 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(visual);
+        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+        using var file = File.Create(Path.Combine(directory, name + ".png"));
+        encoder.Save(file);
     }
 
     private static void RenderDetachedWindow(Window window, string name, string directory)
@@ -636,8 +700,8 @@ public partial class MainWindow : Window
         Grid.SetColumnSpan(DashboardSettingsRail, stacked ? 3 : 1);
         Grid.SetRow(DashboardSettingsRail, stacked ? 2 : 0);
         DashboardRailGapRow.Height = new GridLength(stacked ? 24 : 0);
-        CapturePreviewBorder.Height = size.Height < 850 ? 190 : 300;
-        DashboardHeadingGrid.Height = size.Height < 850 ? 84 : 92;
+        CapturePreviewBorder.Height = size.Height < 850 ? 180 : 260;
+        DashboardHeadingGrid.Height = size.Height < 850 ? 80 : 84;
         System.Windows.Shell.WindowChrome.GetWindowChrome(this).CaptionHeight = 64;
         return 1;
     }
@@ -799,18 +863,15 @@ public partial class MainWindow : Window
         DiagnosticsButton.Content = _recordingService.IsDiagnosing ? "Остановить проверку" : "Начать проверку (90 секунд)";
         DisplayComboBox.IsEnabled = FpsComboBox.IsEnabled = OutputDeviceComboBox.IsEnabled = InputDeviceComboBox.IsEnabled = !_recordingService.IsDiagnosing;
         RecordButtonTitle.Text = recording ? _recordingService.RecordingElapsed.ToString(@"hh\:mm\:ss") : "Запись";
-        RecordButton.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
-            _recordingService.IsRecording ? "#402331" : "#151B27"));
+        RecordButton.Background = (Brush)FindResource(recording ? "DangerSurfaceBrush" : "InputBrush");
         MicrophoneButtonTitle.Text = "Микрофон";
         MicrophoneStateText.Text = _recordingService.IsMicrophoneMuted ? "Выключен" : "Включён";
         MicrophoneStateText.Foreground = _recordingService.IsMicrophoneMuted ? (Brush)FindResource("DangerBrush") : (Brush)FindResource("MutedBrush");
-        MicrophoneIcon.Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
-            _recordingService.IsMicrophoneMuted ? "#F04461" : "#F5F7FC"));
+        MicrophoneIcon.Stroke = (Brush)FindResource(_recordingService.IsMicrophoneMuted ? "DangerBrush" : "TextBrush");
         ReplayStatusText.Text = _recordingService.IsReplayBuffering ? "CLIPALKA работает" : "Replay выключен";
         if (recording) ReplayStatusText.Text = "Идёт запись";
         if (_recordingService.IsDiagnosing) ReplayStatusText.Text = "● Диагностика включена";
-        ReplayStatusDot.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
-            recording ? "#FF506C" : _recordingService.IsReplayBuffering ? "#36D399" : "#64748B"));
+        ReplayStatusDot.Fill = (Brush)FindResource(recording ? "DangerBrush" : _recordingService.IsReplayBuffering ? "SuccessBrush" : "SubtleBrush");
         ReplaySourceText.Text = recording ? _recordingService.RecordingCaptureName ?? "Запись"
             : !_recordingService.IsReplayBuffering
             ? "Источник не выбран"
