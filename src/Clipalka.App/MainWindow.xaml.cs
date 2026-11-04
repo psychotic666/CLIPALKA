@@ -25,7 +25,7 @@ public partial class MainWindow : Window
     public void RenderUiSamples(string directory)
     {
         Directory.CreateDirectory(directory);
-        GreetingText.Text = "Играй. Мы сохраним момент.";
+        GreetingText.Text = "Центр захвата";
         _settings.FramesPerSecond = 120;
         _settings.RecordHotkey = "Shift+R";
         _settings.ReplayHotkey = "Shift+Z";
@@ -117,7 +117,8 @@ public partial class MainWindow : Window
                 ControllerComboBox.ItemsSource = new[] { new ControllerDevice("test", "Wireless Controller (DualSense)"), new ControllerDevice("test-flydigi", "Flydigi (XInput)") };
                 ControllerComboBox.SelectedIndex = 0;
                 ControllerBindingText.Text = "Wireless Controller · Create + R1";
-                ControllerStatusText.Text = "Пример назначенного сочетания · удержание 0,4 с";
+                ControllerStatusText.Text = "Сочетание сохранено · нажми один раз";
+                ControllerInputText.Text = "Кнопки отпущены";
             }
             if (page == "empty")
             {
@@ -136,7 +137,7 @@ public partial class MainWindow : Window
             root.UpdateLayout();
             var hintBottom = RecordHotkeyHint.TransformToAncestor(CaptureActionsGrid)
                 .Transform(new Point(0, RecordHotkeyHint.ActualHeight)).Y;
-            if ((page is "home" or "empty" or "recording" or "error") && (hintBottom > CaptureActionsGrid.ActualHeight || Math.Abs(ReplayButton.ActualHeight - 84) > 0.1))
+            if ((page is "home" or "empty" or "recording" or "error") && (hintBottom > CaptureActionsGrid.ActualHeight || Math.Abs(ReplayButton.ActualHeight - 72) > 0.1))
                 throw new InvalidOperationException("Capture action layout clips its controls.");
             if (page is "home" or "empty" or "recording" or "error")
             {
@@ -206,6 +207,18 @@ public partial class MainWindow : Window
             host.UpdateLayout();
             SaveVisual(root, "ui-keyboard", directory);
 
+            // Hover must cover the whole control, including its content padding.
+            foreach (var button in new[] { DashboardNavButton, ReplayButton })
+            {
+                button.ApplyTemplate();
+                var hover = (Border)button.Template.FindName("Hover", button);
+                if (hover.ActualWidth < button.ActualWidth - 4 || hover.ActualHeight < button.ActualHeight - 4)
+                    throw new InvalidOperationException("Hover must fill the rounded button rather than its padded content rectangle.");
+            }
+            ShowPage(AudioPage, ClipsNavButton);
+            host.UpdateLayout();
+            SaveVisual(root, "ui-gallery-interaction", directory);
+
             ShowPage(HotkeysPage, HotkeysNavButton);
             ControllerComboBox.Focus();
             ControllerComboBox.IsDropDownOpen = true;
@@ -218,7 +231,7 @@ public partial class MainWindow : Window
             SaveVisual(popupVisual, "device-popup", directory);
             ControllerComboBox.IsDropDownOpen = false;
             File.WriteAllText(Path.Combine(directory, "interaction-verification.txt"),
-                "PASS: Tab reaches replay from recording; selected controller is exposed by real ComboBoxItem; native popup rendered.");
+                "PASS: Tab reaches replay from recording; navigation and action hover layers fill their rounded controls; selected controller is exposed by real ComboBoxItem; native popup rendered.");
         }
         finally
         {
@@ -287,7 +300,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         Width = Math.Min(Width, SystemParameters.WorkArea.Width - 24);
         Height = Math.Min(Height, SystemParameters.WorkArea.Height - 24);
-        GreetingText.Text = "Играй. Мы сохраним момент.";
+        GreetingText.Text = "Центр захвата";
         ShowPage(DashboardPage, DashboardNavButton);
         foreach (var field in new[] { OutputPathTextBox, RecordHotkeyTextBox, ReplayHotkeyTextBox, MicrophoneHotkeyTextBox, GalleryHotkeyTextBox })
             field.TextChanged += SettingsFieldChanged;
@@ -295,7 +308,7 @@ public partial class MainWindow : Window
             field.SelectionChanged += SettingsFieldChanged;
         OutputVolumeSlider.ValueChanged += SettingsFieldChanged;
         MicrophoneVolumeSlider.ValueChanged += SettingsFieldChanged;
-        foreach (var field in new[] { AutoGameCheckBox, StartReplayCheckBox, GameOnlyHotkeysCheckBox })
+        foreach (var field in new[] { AutoGameCheckBox, StartReplayCheckBox, GameOnlyHotkeysCheckBox, ControllerGameOnlyCheckBox })
             field.Click += SettingsFieldChanged;
         _recordingService = new RecordingService(new ReplayClipExporter(), _captureTargets);
         _trayNotifications = new TrayNotificationService();
@@ -343,7 +356,8 @@ public partial class MainWindow : Window
                 await _settingsStore.SaveAsync(_settings);
             }
             await LoadRecentClipsAsync();
-            _hotkeys = new GlobalHotkeyService();
+            try { _hotkeys = new GlobalHotkeyService(); }
+            catch (Exception error) { ShowError("Клавиатурные хоткеи недоступны", error); }
             RegisterHotkeys();
             InitializeControllerHotkeys();
 
@@ -471,6 +485,7 @@ public partial class MainWindow : Window
             ApplyFormToSettings();
             RecordingPathService.EnsureOutputDirectory(_settings.OutputDirectory);
             await _settingsStore.SaveAsync(_settings);
+            _controllerHotkeys?.Configure(_settings.ReplayControllerBinding);
             RegisterHotkeys();
 
             if (_recordingService.IsReplayBuffering)
@@ -722,18 +737,18 @@ public partial class MainWindow : Window
 
     private double ApplyWindowScale(Size size)
     {
-        // Adapt the selected Studio concept without scaling down the visual tree.
+        // Adapt the desktop layout without shrinking the visual tree.
         ShellRoot.LayoutTransform = Transform.Identity;
         var compact = size.Height < 850;
-        NavigationStrip.Width = Math.Min(700, size.Width - 96);
-        GreetingText.FontSize = size.Width < 1100 ? 30 : compact ? 34 : 42;
-        GreetingText.LineHeight = compact ? 44 : 52;
-        DashboardHeadingGrid.Height = compact ? 90 : 100;
-        CapturePreviewBorder.Height = compact ? Math.Max(160, size.Height - 610) : Math.Min(340, size.Height - 692);
-        var actionFontSize = size.Width < 1100 ? 16 : size.Width < 1360 ? 19 : 23;
+        NavigationStrip.Width = Math.Min(520, size.Width - 410);
+        GreetingText.FontSize = 25;
+        GreetingText.LineHeight = double.NaN;
+        DashboardHeadingGrid.Height = 54;
+        CapturePreviewBorder.Height = compact ? Math.Max(160, size.Height - 590) : Math.Min(320, size.Height - 700);
+        var actionFontSize = size.Width < 1100 ? 16 : 19;
         RecordButtonTitle.FontSize = ReplayButtonTitle.FontSize = actionFontSize;
-        MicrophoneButtonTitle.FontSize = Math.Min(actionFontSize, 21);
-        RecordHotkeyHint.FontSize = ReplayHotkeyHint.FontSize = MicrophoneHotkeyHint.FontSize = size.Width < 1100 ? 14 : 16;
+        MicrophoneButtonTitle.FontSize = actionFontSize;
+        RecordHotkeyHint.FontSize = ReplayHotkeyHint.FontSize = MicrophoneHotkeyHint.FontSize = 13;
         MicrophoneToggleTrack.Visibility = size.Width < 1160 ? Visibility.Collapsed : Visibility.Visible;
         System.Windows.Shell.WindowChrome.GetWindowChrome(this).CaptionHeight = 48;
         return 1;
@@ -790,6 +805,7 @@ public partial class MainWindow : Window
         StartReplayCheckBox.IsChecked = _settings.StartReplayBufferWithApp;
         AutoGameCheckBox.IsChecked = _settings.AutoCaptureGame;
         GameOnlyHotkeysCheckBox.IsChecked = _settings.HotkeysOnlyWhileGameActive;
+        ControllerGameOnlyCheckBox.IsChecked = _settings.ControllerHotkeysOnlyWhileGameActive;
         SelectDevice(DisplayComboBox, _settings.DisplayDeviceName);
         SelectDevice(OutputDeviceComboBox, _settings.OutputAudioDeviceId);
         SelectDevice(InputDeviceComboBox, _settings.InputAudioDeviceId);
@@ -833,6 +849,7 @@ public partial class MainWindow : Window
         _settings.StartReplayBufferWithApp = StartReplayCheckBox.IsChecked == true;
         _settings.AutoCaptureGame = AutoGameCheckBox.IsChecked == true;
         _settings.HotkeysOnlyWhileGameActive = GameOnlyHotkeysCheckBox.IsChecked == true;
+        _settings.ControllerHotkeysOnlyWhileGameActive = ControllerGameOnlyCheckBox.IsChecked == true;
     }
 
     private bool SynchronizeSelectedDevicesWithSettings()
@@ -855,8 +872,6 @@ public partial class MainWindow : Window
         {
             return;
         }
-        _controllerHotkeys?.Configure(_settings.ReplayControllerBinding);
-
         HotkeyBinding.TryParse(_settings.RecordHotkey, out var recordBinding);
         HotkeyBinding.TryParse(_settings.ReplayHotkey, out var replayBinding);
         _hotkeys.Register(
@@ -1026,7 +1041,10 @@ public partial class MainWindow : Window
         try
         {
             _controllerHotkeys = new ControllerHotkeyService(Dispatcher, CanExecuteControllerHotkey,
-                () => Dispatcher.BeginInvoke(new Action(() => _ = SaveReplayAsync())));
+                () => Dispatcher.BeginInvoke(new Action(() => _ = SaveReplayAsync())), GetControllerBlockReason);
+            _controllerHotkeys.InputChanged += text => ControllerInputText.Text = text;
+            _controllerHotkeys.TriggerRejected += reason =>
+                _captureNotifications.Show(CaptureNotificationKind.Replay, "Клип не сохранён", reason);
             _controllerHotkeys.DevicesChanged += devices =>
             {
                 var selected = ControllerComboBox.SelectedValue as string ?? _pendingControllerBinding?.DeviceId;
@@ -1058,17 +1076,22 @@ public partial class MainWindow : Window
         }
     }
 
-    private bool CanExecuteControllerHotkey()
+    private bool CanExecuteControllerHotkey() => GetControllerBlockReason() is null;
+
+    private string? GetControllerBlockReason()
     {
-        if (_isClosing || _isBusy || !_recordingService.IsReplayBuffering || IsEditingHotkey()) return false;
-        if (!_settings.HotkeysOnlyWhileGameActive) return true;
+        if (_isClosing) return "приложение закрывается";
+        if (_isBusy) return "дождись завершения текущей операции";
+        if (!_recordingService.IsReplayBuffering) return "replay выключен — сначала включи буфер";
+        if (IsEditingHotkey()) return "закончи редактирование клавиатурного хоткея";
+        if (!_settings.ControllerHotkeysOnlyWhileGameActive) return null;
         var now = Stopwatch.GetTimestamp();
         if (now - _controllerPermissionCheckedAt >= Stopwatch.Frequency / 5)
         {
             _controllerPermissionCheckedAt = now;
             _controllerGameActive = _captureTargets.IsLikelyGameActive();
         }
-        return _controllerGameActive;
+        return _controllerGameActive ? null : "игра не активна; ограничение геймпада включено в настройках";
     }
 
     private void LearnControllerButton_Click(object sender, RoutedEventArgs e)

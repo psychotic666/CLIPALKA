@@ -10,60 +10,63 @@ public sealed class ControllerChordMatcherTests
         _matcher.Update(Chord, pressed, TimeSpan.FromMilliseconds(ms), enabled);
 
     [Fact]
+    public void GameplayButtonHeld_StillSavesTheAssignedChord()
+    {
+        Read(0, []);
+        Assert.True(Read(10, [2, 4, 8]));
+        Assert.False(Read(500, [2, 4, 8]));
+    }
+
+    [Fact]
+    public void UnrelatedButtonCanStayHeld_BeforeAndBetweenClips()
+    {
+        Read(0, [2]);
+        Assert.False(Read(10, [2, 4]));
+        Assert.True(Read(30, [2, 4, 8]));
+        Assert.False(Read(50, [2]));
+        Assert.True(Read(70, [2, 4, 8]));
+    }
+
+    [Fact]
+    public void AShortChordPress_SavesOnceWithoutARequiredHold()
+    {
+        Read(0, []);
+        Assert.True(Read(10, Chord));
+        Assert.False(Read(50, []));
+    }
+
+    [Fact]
     public void HeldAtStartup_DoesNotTriggerUntilReleased()
     {
         Assert.False(Read(0, Chord));
         Assert.False(Read(500, Chord));
         Assert.False(Read(600, []));
-        Assert.False(Read(700, Chord));
-        Assert.True(Read(1100, Chord));
+        Assert.True(Read(700, Chord));
+        Assert.False(Read(1100, Chord));
     }
 
     [Fact]
-    public void LongHold_FiresOnce_ThenRequiresFullRelease()
+    public void LongHold_FiresOnce_ThenRequiresAssignedButtonsReleased()
     {
         Read(0, []);
-        Assert.False(Read(10, Chord));
-        Assert.False(Read(409, Chord));
-        Assert.True(Read(410, Chord));
+        Assert.True(Read(10, Chord));
         Assert.False(Read(1000, Chord));
         Assert.False(Read(1100, [4]));
         Assert.False(Read(1200, Chord));
         Read(1500, []);
-        Read(1600, Chord);
-        Assert.True(Read(2000, Chord));
-    }
-
-    [Fact]
-    public void ExtraGameplayButton_InterruptsHold()
-    {
-        Read(0, []);
-        Read(10, Chord);
-        Assert.False(Read(350, [4, 8, 2]));
-        Assert.False(Read(400, Chord));
-        Assert.False(Read(799, Chord));
-        Assert.True(Read(800, Chord));
-    }
-
-    [Fact]
-    public void ShortPress_DoesNotSaveClip()
-    {
-        Read(0, []);
-        Read(10, Chord);
-        Assert.False(Read(200, []));
-        Assert.False(Read(600, []));
+        Assert.True(Read(1600, Chord));
+        Assert.False(Read(2000, Chord));
     }
 
     [Fact]
     public void RegainingFocusOrReconnect_DoesNotFireHeldChord()
     {
         Read(0, []);
-        Read(10, Chord);
+        Assert.True(Read(10, Chord));
         Assert.False(Read(500, Chord, false));
         Assert.False(Read(1000, Chord));
         Read(1100, []);
-        Read(1200, Chord);
-        Assert.True(Read(1600, Chord));
+        Assert.True(Read(1200, Chord));
         _matcher.Reset();
         Assert.False(Read(2500, Chord));
     }

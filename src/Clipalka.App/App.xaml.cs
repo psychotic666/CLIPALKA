@@ -31,7 +31,8 @@ public partial class App : System.Windows.Application
             System.IO.Directory.CreateDirectory(e.Args[1]);
             try
             {
-                var result = Services.NativeControllerInputs.VerifyDesktopInterop();
+                var result = Services.NativeControllerInputs.VerifyDesktopInterop() + Environment.NewLine +
+                    Services.ControllerHotkeyVerification.Run();
                 System.IO.File.WriteAllText(System.IO.Path.Combine(e.Args[1], "result.txt"), result);
                 Shutdown(0);
             }

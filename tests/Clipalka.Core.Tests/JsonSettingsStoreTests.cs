@@ -24,6 +24,7 @@ public sealed class JsonSettingsStoreTests : IDisposable
             ReplayHotkey = "Shift+Z",
             MicrophoneHotkey = "Shift+X",
             GalleryHotkey = "Ctrl+G",
+            ControllerHotkeysOnlyWhileGameActive = true,
             ReplayControllerBinding = new ControllerBinding
             {
                 DeviceId = "bluetooth-controller-id", DeviceName = "Wireless Controller",
@@ -44,6 +45,7 @@ public sealed class JsonSettingsStoreTests : IDisposable
         Assert.Equal(expected.ReplayHotkey, actual.ReplayHotkey);
         Assert.Equal(expected.MicrophoneHotkey, actual.MicrophoneHotkey);
         Assert.Equal(expected.GalleryHotkey, actual.GalleryHotkey);
+        Assert.True(actual.ControllerHotkeysOnlyWhileGameActive);
         Assert.NotNull(actual.ReplayControllerBinding);
         Assert.Equal(expected.ReplayControllerBinding.DeviceId, actual.ReplayControllerBinding.DeviceId);
         Assert.Equal(expected.ReplayControllerBinding.Inputs, actual.ReplayControllerBinding.Inputs);
@@ -73,6 +75,8 @@ public sealed class JsonSettingsStoreTests : IDisposable
         var settings = await new JsonSettingsStore(path).LoadAsync();
         Assert.Null(settings.ReplayControllerBinding);
         Assert.Equal("Shift+Z", settings.ReplayHotkey);
+        Assert.False(settings.ControllerHotkeysOnlyWhileGameActive);
+        Assert.True(settings.HotkeysOnlyWhileGameActive);
     }
 
     public void Dispose()

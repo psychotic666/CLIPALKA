@@ -1,19 +1,19 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="clr-namespace:Clipalka.App.Controls">
-<SolidColorBrush x:Key="WindowBrush" Color="#0C0D12" />
-        <SolidColorBrush x:Key="SidebarBrush" Color="#111218" />
-        <SolidColorBrush x:Key="ContentBrush" Color="#0E0F15" />
-        <SolidColorBrush x:Key="PanelBrush" Color="#191A22" />
-        <SolidColorBrush x:Key="PanelHoverBrush" Color="#282A36" />
-        <SolidColorBrush x:Key="InputBrush" Color="#22242E" />
-        <SolidColorBrush x:Key="BorderBrush" Color="#343744" />
+<SolidColorBrush x:Key="WindowBrush" Color="#080D11" />
+        <SolidColorBrush x:Key="SidebarBrush" Color="#0B1B22" />
+        <SolidColorBrush x:Key="ContentBrush" Color="#080D11" />
+        <SolidColorBrush x:Key="PanelBrush" Color="#101B23" />
+        <SolidColorBrush x:Key="PanelHoverBrush" Color="#1C333C" />
+        <SolidColorBrush x:Key="InputBrush" Color="#152129" />
+        <SolidColorBrush x:Key="BorderBrush" Color="#2B3E48" />
         <LinearGradientBrush x:Key="SidebarSelectedBrush" StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#302549" Offset="0"/><GradientStop Color="#241D36" Offset="1"/></LinearGradientBrush>
-        <SolidColorBrush x:Key="TextBrush" Color="#F5F5FA" />
-        <SolidColorBrush x:Key="MutedBrush" Color="#B1B2C4" />
-        <SolidColorBrush x:Key="SubtleBrush" Color="#989BAD" />
-        <SolidColorBrush x:Key="AccentBrush" Color="#8055EA" />
-        <SolidColorBrush x:Key="AccentHoverBrush" Color="#AD91FF" />
-        <SolidColorBrush x:Key="FocusBrush" Color="#C2AAFF" />
-        <SolidColorBrush x:Key="SuccessBrush" Color="#4DE3B1" />
+        <SolidColorBrush x:Key="TextBrush" Color="#ECF3F5" />
+        <SolidColorBrush x:Key="MutedBrush" Color="#ABBDC6" />
+        <SolidColorBrush x:Key="SubtleBrush" Color="#8EA4AF" />
+        <SolidColorBrush x:Key="AccentBrush" Color="#187D85" />
+        <SolidColorBrush x:Key="AccentHoverBrush" Color="#74D6D0" />
+        <SolidColorBrush x:Key="FocusBrush" Color="#9AEBE5" />
+        <SolidColorBrush x:Key="SuccessBrush" Color="#6BD4BD" />
         <SolidColorBrush x:Key="DangerBrush" Color="#FF506C" />
         <SolidColorBrush x:Key="DangerSurfaceBrush" Color="#402331" />
 
@@ -32,7 +32,7 @@
         <StreamGeometry x:Key="CheckIcon">M5,12 L10,17 L20,6</StreamGeometry>
         <StreamGeometry x:Key="WarningIcon">M12,3 L22,21 L2,21 Z M12,9 L12,14 M12,17 L12,17.1</StreamGeometry>
 
-        <Style x:Key="StudioFocus" TargetType="Control"><Setter Property="Template"><Setter.Value><ControlTemplate><Border BorderBrush="#C2AAFF" BorderThickness="2" CornerRadius="10" Margin="-3" /></ControlTemplate></Setter.Value></Setter></Style>
+        <Style x:Key="StudioFocus" TargetType="Control"><Setter Property="Template"><Setter.Value><ControlTemplate><Border BorderBrush="#9AEBE5" BorderThickness="2" CornerRadius="8" Margin="-2" /></ControlTemplate></Setter.Value></Setter></Style>
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
             <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI" />
@@ -56,8 +56,8 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <controls:RoundedClipBorder x:Name="Root" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" Padding="{TemplateBinding Padding}">
-                            <Grid><Border x:Name="HoverOverlay" Background="White" Opacity="0" CornerRadius="7" /><ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" /></Grid>
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+                            <Grid><Border x:Name="HoverOverlay" Background="White" Opacity="0" CornerRadius="6"/><ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/></Grid>
                         </controls:RoundedClipBorder>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="HoverOverlay" Property="Opacity" Value="0.07" /></Trigger>
@@ -88,8 +88,8 @@
         </Style>
 
         <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Background"><Setter.Value><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#8759E8" Offset="0"/><GradientStop Color="#693BDC" Offset="1"/></LinearGradientBrush></Setter.Value></Setter>
-            <Setter Property="BorderBrush" Value="#AE8AFB" />
+            <Setter Property="Background"><Setter.Value><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#187D85" Offset="0"/><GradientStop Color="#146A74" Offset="1"/></LinearGradientBrush></Setter.Value></Setter>
+            <Setter Property="BorderBrush" Value="#4BA5AC" />
             <Setter Property="FontSize" Value="14" />
             <Setter Property="FontWeight" Value="Bold" />
             <Setter Property="MinHeight" Value="64" />
@@ -98,7 +98,7 @@
         <Style x:Key="CircularActionButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Width" Value="74" /><Setter Property="Height" Value="74" /><Setter Property="MinHeight" Value="74" />
             <Setter Property="Padding" Value="0" /><Setter Property="BorderThickness" Value="2" />
-            <Setter Property="Background" Value="#20212B" /><Setter Property="BorderBrush" Value="#606473" />
+            <Setter Property="Background" Value="#20212B" /><Setter Property="BorderBrush" Value="#47616D" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -122,8 +122,8 @@
             <Setter Property="Background" Value="{StaticResource PanelBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="14" />
-            <Setter Property="Padding" Value="20" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="22" />
         </Style>
 
         <Style x:Key="FieldLabel" TargetType="TextBlock">
@@ -243,7 +243,7 @@
                                 </Track.DecreaseRepeatButton>
                                 <Track.Thumb>
                                     <Thumb Width="18" Height="18">
-                                        <Thumb.Template><ControlTemplate TargetType="Thumb"><Ellipse Fill="#9B7BFF" Stroke="#B9A6FF" StrokeThickness="1" /></ControlTemplate></Thumb.Template>
+                                        <Thumb.Template><ControlTemplate TargetType="Thumb"><Ellipse Fill="#69CCC8" Stroke="#B3E7E2" StrokeThickness="1" /></ControlTemplate></Thumb.Template>
                                     </Thumb>
                                 </Track.Thumb>
                                 <Track.IncreaseRepeatButton>
@@ -259,20 +259,16 @@
         </Style>
 
         <!-- Shared desktop tokens and consistent vector artwork. -->
-        <LinearGradientBrush x:Key="HeroBrush" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#252037" Offset="0"/><GradientStop Color="#171821" Offset="0.65"/><GradientStop Color="#1E1B2D" Offset="1"/>
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="PreviewBrush" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#202232" Offset="0"/><GradientStop Color="#181825" Offset="0.6"/><GradientStop Color="#33254A" Offset="1"/>
-        </LinearGradientBrush>
+        <SolidColorBrush x:Key="HeroBrush" Color="#101B23"/>
+        <SolidColorBrush x:Key="PreviewBrush" Color="#101F27"/>
         <StreamGeometry x:Key="ArrowIcon">M5,12 L19,12 M14,7 L19,12 L14,17</StreamGeometry>
         <StreamGeometry x:Key="FolderIcon">M3,7 L9,7 L11,9 L21,9 L21,20 L3,20 Z M3,7 L3,4 L9,4 L12,7 L21,7 L21,9</StreamGeometry>
         <StreamGeometry x:Key="MonitorIcon">M3,4 L21,4 L21,17 L3,17 Z M8,21 L16,21 M12,17 L12,21</StreamGeometry>
         <StreamGeometry x:Key="PlayIcon">M9,5 L19,12 L9,19 Z</StreamGeometry>
         <DrawingImage x:Key="BrandMark">
             <DrawingImage.Drawing><DrawingGroup>
-                <GeometryDrawing Brush="#AD87FF" Geometry="M6,2 L14,2 L14,7 L7,7 L7,25 L14,25 L14,30 L6,30 C3,30 1,28 1,25 L1,7 C1,4 3,2 6,2 Z"/>
-                <GeometryDrawing Brush="#8055EA" Geometry="M17,2 L25,2 C28,2 30,4 30,7 L30,14 C30,17 28,19 25,19 L22,19 L22,30 L17,30 L17,2 Z M22,7 L22,14 L25,14 L25,7 Z"/>
+                <GeometryDrawing Brush="#74D6D0" Geometry="M6,2 L14,2 L14,7 L7,7 L7,25 L14,25 L14,30 L6,30 C3,30 1,28 1,25 L1,7 C1,4 3,2 6,2 Z"/>
+                <GeometryDrawing Brush="#187D85" Geometry="M17,2 L25,2 C28,2 30,4 30,7 L30,14 C30,17 28,19 25,19 L22,19 L22,30 L17,30 L17,2 Z M22,7 L22,14 L25,14 L25,7 Z"/>
             </DrawingGroup></DrawingImage.Drawing>
         </DrawingImage>
         <Style x:Key="StudioIcon" TargetType="Path">
@@ -283,7 +279,7 @@
             <Setter Property="Fill" Value="Transparent"/><Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
         <Style x:Key="PageHeading" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="32"/><Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="28"/><Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
         </Style>
         <Style x:Key="SectionHeading" TargetType="TextBlock">
@@ -320,65 +316,75 @@
             </ControlTemplate></Setter.Value></Setter>
         </Style>
 
-    <LinearGradientBrush x:Key="StudioCanvasBrush" StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#22232D" Offset="0"/><GradientStop Color="#181A22" Offset="0.5"/><GradientStop Color="#20212A" Offset="1"/></LinearGradientBrush>
-    <LinearGradientBrush x:Key="StudioSurfaceBrush" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#31333F" Offset="0"/><GradientStop Color="#262832" Offset="1"/></LinearGradientBrush>
-    <LinearGradientBrush x:Key="StudioPurpleBrush" StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#8B46E8" Offset="0"/><GradientStop Color="#6536D2" Offset="1"/></LinearGradientBrush>
+    <SolidColorBrush x:Key="StudioCanvasBrush" Color="#080D11"/>
+    <SolidColorBrush x:Key="StudioSurfaceBrush" Color="#12232C"/>
+    <SolidColorBrush x:Key="ReplayAccentBrush" Color="#187D85"/>
+    <SolidColorBrush x:Key="SelectedSurfaceBrush" Color="#203F49"/>
     <StreamGeometry x:Key="SaveClipIcon">M12,3 L12,15 M6,9 L12,15 L18,9 M4,15 L4,21 L20,21 L20,15</StreamGeometry>
     <StreamGeometry x:Key="ChevronRightIcon">M8,4 L16,12 L8,20</StreamGeometry>
     <ControlTemplate x:Key="StudioPillTemplate" TargetType="Button">
-    <controls:RoundedClipBorder x:Name="Root" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="24" Padding="{TemplateBinding Padding}">
-        <Grid><Border x:Name="Hover" Background="White" Opacity="0"/><ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/></Grid>
-    </controls:RoundedClipBorder>
-    <ControlTemplate.Triggers>
-        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.07"/></Trigger>
-        <Trigger Property="IsPressed" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.13"/></Trigger>
-        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource FocusBrush}"/></Trigger>
-        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.4"/></Trigger>
-    </ControlTemplate.Triggers>
-</ControlTemplate>
+        <controls:RoundedClipBorder x:Name="Root" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+            <Grid>
+                <Border x:Name="Hover" Background="White" Opacity="0" CornerRadius="6"/>
+                <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+            </Grid>
+        </controls:RoundedClipBorder>
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.07"/></Trigger>
+            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.13"/></Trigger>
+            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource FocusBrush}"/></Trigger>
+            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.4"/></Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
     <ControlTemplate x:Key="StudioActionTemplate" TargetType="Button">
-    <controls:RoundedClipBorder x:Name="Root" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="20" Padding="{TemplateBinding Padding}">
-        <Grid><Border x:Name="Hover" Background="White" Opacity="0"/><ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/></Grid>
-    </controls:RoundedClipBorder>
-    <ControlTemplate.Triggers>
-        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.07"/></Trigger>
-        <Trigger Property="IsPressed" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.13"/></Trigger>
-        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource FocusBrush}"/></Trigger>
-        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.4"/></Trigger>
-    </ControlTemplate.Triggers>
-</ControlTemplate>
+        <controls:RoundedClipBorder x:Name="Root" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8">
+            <Grid>
+                <Border x:Name="Hover" Background="White" Opacity="0" CornerRadius="8"/>
+                <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+            </Grid>
+        </controls:RoundedClipBorder>
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.07"/></Trigger>
+            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.13"/></Trigger>
+            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource FocusBrush}"/></Trigger>
+            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.4"/></Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
     <ControlTemplate x:Key="StudioQuickTemplate" TargetType="Button">
-    <controls:RoundedClipBorder x:Name="Root" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="12" Padding="{TemplateBinding Padding}">
-        <Grid><Border x:Name="Hover" Background="White" Opacity="0"/><ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/></Grid>
-    </controls:RoundedClipBorder>
-    <ControlTemplate.Triggers>
-        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.07"/></Trigger>
-        <Trigger Property="IsPressed" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.13"/></Trigger>
-        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource FocusBrush}"/></Trigger>
-        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.4"/></Trigger>
-    </ControlTemplate.Triggers>
-</ControlTemplate>
+        <controls:RoundedClipBorder x:Name="Root" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8">
+            <Grid>
+                <Border x:Name="Hover" Background="White" Opacity="0" CornerRadius="8"/>
+                <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+            </Grid>
+        </controls:RoundedClipBorder>
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.07"/></Trigger>
+            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.13"/></Trigger>
+            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource FocusBrush}"/></Trigger>
+            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.4"/></Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
     <Style x:Key="StudioTab" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
         <Setter Property="Template" Value="{StaticResource StudioPillTemplate}"/>
         <Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="Transparent"/>
-        <Setter Property="Foreground" Value="{StaticResource MutedBrush}"/><Setter Property="Padding" Value="18,4"/>
-        <Setter Property="MinHeight" Value="44"/>
-        <Style.Triggers><Trigger Property="Tag" Value="Selected"><Setter Property="Background" Value="{StaticResource StudioPurpleBrush}"/><Setter Property="Foreground" Value="White"/></Trigger></Style.Triggers>
+        <Setter Property="Foreground" Value="{StaticResource MutedBrush}"/><Setter Property="Padding" Value="16,4"/>
+        <Setter Property="MinHeight" Value="36"/>
+        <Style.Triggers><Trigger Property="Tag" Value="Selected"><Setter Property="Background" Value="{StaticResource SelectedSurfaceBrush}"/><Setter Property="Foreground" Value="White"/></Trigger></Style.Triggers>
     </Style>
     <Style x:Key="StudioActionButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
         <Setter Property="Template" Value="{StaticResource StudioActionTemplate}"/>
-        <Setter Property="Background" Value="{StaticResource StudioSurfaceBrush}"/><Setter Property="BorderBrush" Value="#4C4E5B"/>
-        <Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="Padding" Value="24,12"/>
-        <Setter Property="MinHeight" Value="84"/>
+        <Setter Property="Background" Value="{StaticResource StudioSurfaceBrush}"/><Setter Property="BorderBrush" Value="#304A56"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="Padding" Value="20,10"/>
+        <Setter Property="MinHeight" Value="72"/>
     </Style>
     <Style x:Key="StudioReplayButton" TargetType="Button" BasedOn="{StaticResource StudioActionButton}">
-        <Setter Property="Background" Value="{StaticResource StudioPurpleBrush}"/><Setter Property="BorderBrush" Value="#A278EE"/>
+        <Setter Property="Background" Value="{StaticResource ReplayAccentBrush}"/><Setter Property="BorderBrush" Value="#4BA5AC"/>
     </Style>
     <Style x:Key="StudioQuickButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
         <Setter Property="Template" Value="{StaticResource StudioQuickTemplate}"/>
-        <Setter Property="Background" Value="{StaticResource StudioSurfaceBrush}"/><Setter Property="BorderBrush" Value="#4C4E5B"/>
+        <Setter Property="Background" Value="{StaticResource StudioSurfaceBrush}"/><Setter Property="BorderBrush" Value="#304A56"/>
         <Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="20,8"/>
-        <Setter Property="MinHeight" Value="52"/>
+        <Setter Property="MinHeight" Value="44"/>
     </Style>
     <Style x:Key="SettingsTab" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
         <Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="Transparent"/>

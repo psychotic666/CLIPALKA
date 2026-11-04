@@ -20,4 +20,5 @@ public sealed class AppSettings
     public bool StartReplayBufferWithApp { get; set; } = true;
     public bool AutoCaptureGame { get; set; } = true;
     public bool HotkeysOnlyWhileGameActive { get; set; } = true;
+    public bool ControllerHotkeysOnlyWhileGameActive { get; set; }
 }

@@ -11,36 +11,53 @@ public sealed record ControllerDevice(string Id, string Name)
     public override string ToString() => Name;
 }
 
-// RawGameController covers HID/DirectInput and controllers exposed through XInput.
-// Device-reported indices are learned rather than guessed from a vendor-specific layout.
 public sealed class ControllerHotkeyService : IDisposable
 {
     private readonly DispatcherTimer _timer;
     private readonly Stopwatch _clock = Stopwatch.StartNew();
+    private readonly Func<TimeSpan> _now;
+    private readonly Func<IReadOnlyList<IControllerInput>>? _enumerateOverride;
     private readonly ControllerChordMatcher _matcher = new();
+    private readonly ControllerChordMatcher _physicalMatcher = new();
     private readonly Func<bool> _canTrigger;
+    private readonly Func<string?>? _blockReason;
     private readonly Action _saveReplay;
+    private readonly Queue<string> _trace = new();
     private List<IControllerInput> _devices = [];
-    public string DetectionDetails { get; private set; } = "Обнаружение ещё не запускалось.";
+    private string _detectionSummary = "Обнаружение ещё не запускалось.";
+    public string DetectionDetails => _detectionSummary + "\n" + string.Join("\n", _trace);
     private TimeSpan _lastScan = TimeSpan.FromSeconds(-3);
-    private TimeSpan _learnUntil;
+    private TimeSpan _learnUntil, _feedbackUntil;
     private string? _learningDevice;
     private bool _learningNeutral;
     private int[] _bestChord = [];
     private ControllerBinding? _binding;
-    private string? _lastStatus;
+    private string? _lastStatus, _lastInputs;
     private bool _disposed;
 
     public event Action<IReadOnlyList<ControllerDevice>>? DevicesChanged;
     public event Action<ControllerBinding>? BindingCaptured;
     public event Action<string>? StatusChanged;
+    public event Action<string>? InputChanged;
+    public event Action<string>? TriggerRejected;
     public bool IsLearning => _learningDevice is not null;
 
-    public ControllerHotkeyService(Dispatcher dispatcher, Func<bool> canTrigger, Action saveReplay)
+    public ControllerHotkeyService(Dispatcher dispatcher, Func<bool> canTrigger, Action saveReplay,
+        Func<string?>? blockReason = null)
+        : this(dispatcher, canTrigger, saveReplay, null, null, true, blockReason) { }
+
+    internal ControllerHotkeyService(Dispatcher dispatcher, Func<bool> canTrigger, Action saveReplay,
+        Func<IReadOnlyList<IControllerInput>>? enumerate, Func<TimeSpan>? now, bool startTimer,
+        Func<string?>? blockReason = null)
     {
         _canTrigger = canTrigger;
         _saveReplay = saveReplay;
-        _timer = new DispatcherTimer(TimeSpan.FromMilliseconds(20), DispatcherPriority.Background, Tick, dispatcher);
+        _blockReason = blockReason;
+        _enumerateOverride = enumerate;
+        _now = now ?? (() => _clock.Elapsed);
+        _timer = new DispatcherTimer(DispatcherPriority.Input, dispatcher) { Interval = TimeSpan.FromMilliseconds(20) };
+        _timer.Tick += Tick;
+        if (startTimer) _timer.Start();
     }
 
     public void Configure(ControllerBinding? binding)
@@ -48,7 +65,8 @@ public sealed class ControllerHotkeyService : IDisposable
         _binding = binding is { DeviceId.Length: > 0, Inputs.Length: > 0 } && binding.Inputs.All(input => input >= 0)
             ? new ControllerBinding { DeviceId = binding.DeviceId, DeviceName = binding.DeviceName,
                 Label = binding.Label, Inputs = binding.Inputs.Distinct().Order().ToArray() } : null;
-        _matcher.Reset();
+        ResetMatchers();
+        Trace(_binding is null ? "Binding disabled" : "Binding configured: " + _binding.DeviceId + " / " + _binding.Label);
     }
 
     public void StartLearning(string deviceId)
@@ -58,8 +76,8 @@ public sealed class ControllerHotkeyService : IDisposable
         _learningDevice = deviceId;
         _learningNeutral = false;
         _bestChord = [];
-        _learnUntil = _clock.Elapsed + TimeSpan.FromSeconds(15);
-        _matcher.Reset();
+        _learnUntil = _now() + TimeSpan.FromSeconds(15);
+        ResetMatchers();
         PublishStatus("Отпусти кнопки, затем нажми сочетание и отпусти его. До 15 секунд.");
     }
 
@@ -67,12 +85,13 @@ public sealed class ControllerHotkeyService : IDisposable
     {
         _learningDevice = null;
         _bestChord = [];
-        _matcher.Reset();
+        ResetMatchers();
         _lastStatus = null;
     }
 
     public void RefreshDevices()
     {
+        if (_enumerateOverride is not null) { ApplyDevices(_enumerateOverride().ToList()); return; }
         var devices = new List<IControllerInput>();
         var errors = new List<string>();
         RawGameController[] connected = [];
@@ -91,27 +110,33 @@ public sealed class ControllerHotkeyService : IDisposable
         }
         try { devices.AddRange(NativeControllerInputs.Enumerate()); }
         catch (Exception error) { errors.Add("Desktop input: " + error.Message); }
-        DetectionDetails = $"WGI: {connected.Length}; доступные источники: {devices.Count}. " + string.Join("; ", errors);
-        if (!_devices.Select(device => device.Id).SequenceEqual(devices.Select(device => device.Id)))
-        {
-            _devices = devices;
-            _matcher.Reset();
-            DevicesChanged?.Invoke(devices.Select(device => new ControllerDevice(device.Id, device.Name)).ToArray());
-        }
-        else _devices = devices;
+        _detectionSummary = $"WGI: {connected.Length}; доступные источники: {devices.Count}. " + string.Join("; ", errors);
+        ApplyDevices(devices);
     }
 
-    private void Tick(object? sender, EventArgs e)
+    private void ApplyDevices(List<IControllerInput> devices)
+    {
+        var bindingId = _binding?.DeviceId;
+        var availabilityChanged = _devices.Any(device => device.Id == bindingId) != devices.Any(device => device.Id == bindingId);
+        var listChanged = !_devices.Select(device => device.Id).SequenceEqual(devices.Select(device => device.Id));
+        _devices = devices;
+        if (availabilityChanged) ResetMatchers();
+        if (listChanged)
+        {
+            Trace("Devices: " + string.Join(", ", devices.Select(device => device.Id)));
+            DevicesChanged?.Invoke(devices.Select(device => new ControllerDevice(device.Id, device.Name)).ToArray());
+        }
+    }
+
+    private void Tick(object? sender, EventArgs e) => Poll();
+
+    internal void Poll()
     {
         if (_disposed) return;
         try
         {
-            var now = _clock.Elapsed;
-            if (now - _lastScan >= TimeSpan.FromSeconds(2))
-            {
-                _lastScan = now;
-                RefreshDevices();
-            }
+            var now = _now();
+            if (now - _lastScan >= TimeSpan.FromSeconds(2)) { _lastScan = now; RefreshDevices(); }
             if (IsLearning && now >= _learnUntil)
             {
                 CancelLearning();
@@ -122,24 +147,23 @@ public sealed class ControllerHotkeyService : IDisposable
             var device = _devices.FirstOrDefault(candidate => candidate.Id == id);
             if (device is null)
             {
-                _matcher.Reset();
+                ResetMatchers();
+                PublishInputs("Нет данных назначенного контроллера");
                 if (IsLearning) CancelLearning();
                 PublishStatus(_devices.Count == 0 ? "Контроллер не найден. Подключи DualSense или Flydigi." :
-                    _binding is null ? "Выбери контроллер и назначь сочетание." : "Назначенный контроллер отключён. После смены режима назначь сочетание снова.");
+                    _binding is null ? "Выбери контроллер и назначь сочетание." : "Назначенный контроллер отключён. Проверь выбранное устройство.");
                 return;
             }
             var pressed = device.ReadPressed();
+            PublishInputs(pressed.Length == 0 ? "Кнопки отпущены" : string.Join(" + ", pressed.Select(device.Label)));
             if (IsLearning)
             {
                 if (pressed.Length == 0)
                 {
                     if (_bestChord.Length > 0)
                     {
-                        var binding = new ControllerBinding
-                        {
-                            DeviceId = device.Id, DeviceName = device.Name, Inputs = _bestChord,
-                            Label = string.Join(" + ", _bestChord.Select(device.Label))
-                        };
+                        var binding = new ControllerBinding { DeviceId = device.Id, DeviceName = device.Name, Inputs = _bestChord,
+                            Label = string.Join(" + ", _bestChord.Select(device.Label)) };
                         CancelLearning();
                         BindingCaptured?.Invoke(binding);
                         PublishStatus("Сочетание выбрано. Нажми «Сохранить настройки».");
@@ -153,21 +177,53 @@ public sealed class ControllerHotkeyService : IDisposable
                 }
                 return;
             }
-            PublishStatus("Подключён: " + device.Name + " · удержание сочетания 0,4 с");
-            if (_binding is not null && _matcher.Update(_binding.Inputs, pressed, now, _canTrigger()))
+            if (_binding is null) return;
+            var permitted = _canTrigger();
+            var physicallyPressed = _physicalMatcher.Update(_binding.Inputs, pressed, now, true);
+            var accepted = _matcher.Update(_binding.Inputs, pressed, now, permitted);
+            if (accepted)
+            {
+                Trace("Replay requested");
+                _feedbackUntil = now + TimeSpan.FromSeconds(3);
+                PublishStatus("Сочетание распознано — сохраняем replay.");
                 _saveReplay();
+            }
+            else if (physicallyPressed && !permitted)
+            {
+                var reason = _blockReason?.Invoke() ?? "сохранение временно недоступно";
+                Trace("Replay rejected: " + reason);
+                _feedbackUntil = now + TimeSpan.FromSeconds(3);
+                PublishStatus("Сочетание распознано, но " + reason);
+                TriggerRejected?.Invoke(reason);
+            }
+            else if (now >= _feedbackUntil)
+                PublishStatus("Подключён: " + device.Name + " · сочетание готово");
         }
-        catch (Exception)
+        catch (Exception error)
         {
-            _matcher.Reset();
+            Trace(error.GetType().Name + ": " + error.Message);
+            ResetMatchers();
             if (IsLearning) CancelLearning();
-            // Force fresh WinRT objects on the next scan after a Bluetooth disconnect.
             _devices.Clear();
             DevicesChanged?.Invoke([]);
+            PublishInputs("Не удалось прочитать кнопки");
             PublishStatus("Не удалось прочитать контроллер. Проверь подключение и режим устройства.");
         }
     }
 
+    private void ResetMatchers() { _matcher.Reset(); _physicalMatcher.Reset(); }
+    private void PublishInputs(string text)
+    {
+        if (_lastInputs == text) return;
+        _lastInputs = text;
+        Trace("Inputs: " + text);
+        InputChanged?.Invoke(text);
+    }
+    private void Trace(string text)
+    {
+        _trace.Enqueue($"{_now().TotalSeconds:F2}s {text}");
+        while (_trace.Count > 100) _trace.Dequeue();
+    }
     private void PublishStatus(string text)
     {
         if (_lastStatus == text) return;
