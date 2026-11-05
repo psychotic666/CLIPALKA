@@ -70,6 +70,9 @@ Windows. Удаление и обновление не стирают клипы
 
 ## Сборка для разработчика
 
+Для продолжения разработки в новом чате Codex на Windows сначала прочитайте
+[контекст проекта и состояние последнего релиза](docs/CONTINUE_ON_WINDOWS.md).
+
 Требуется Windows 10/11 x64, [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
 и Visual C++ Redistributable x64. Для сборки исправленного модуля записи также
 нужны Visual Studio 2022 Desktop C++, ATL и C++/CLI; подробности в [native/README.md](native/README.md).
