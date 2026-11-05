@@ -4,10 +4,10 @@
   #define MyAppName "CLIPALKA"
 #endif
 #ifndef MyAppVersion
-  #define MyAppVersion "0.9.3-rc.2"
+  #define MyAppVersion "0.9.3-rc.3"
 #endif
 #ifndef MyAppFileVersion
-  #define MyAppFileVersion "0.9.3.1"
+  #define MyAppFileVersion "0.9.3.2"
 #endif
 #ifndef MyAppId
   #define MyAppId "{{1B00B859-694D-4C01-AE8C-23148971155A}"
