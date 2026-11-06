@@ -34,7 +34,7 @@ CLIPALKA — C# / .NET 8 / WPF, Windows 10/11 x64. Основные функци
 
 ## Опубликованная версия
 
-Опубликован предварительный релиз `v0.9.3-rc.4`: Signal, DualSense Raw Input,
+Опубликован обычный релиз `v0.9.3-rc.4` (Latest, без отметки Pre-release): Signal, DualSense Raw Input,
 автозапуск, меню трея и индикатор микрофона. Описание: `docs/releases/v0.9.3-rc.4.md`.
 
 - Коммит: `a40425285a0918e606c9ce313848c7dd542fdc01`.
