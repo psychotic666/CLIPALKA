@@ -1,13 +1,15 @@
 #ifdef TestInstaller
   #define MyAppName "CLIPALKA Installer Test"
+  #define MyStartupKey "Software\CLIPALKA\InstallerTest\Run"
 #else
   #define MyAppName "CLIPALKA"
+  #define MyStartupKey "Software\Microsoft\Windows\CurrentVersion\Run"
 #endif
 #ifndef MyAppVersion
-  #define MyAppVersion "0.9.3-rc.3"
+  #define MyAppVersion "0.9.3-rc.4"
 #endif
 #ifndef MyAppFileVersion
-  #define MyAppFileVersion "0.9.3.2"
+  #define MyAppFileVersion "0.9.3.3"
 #endif
 #ifndef MyAppId
   #define MyAppId "{{1B00B859-694D-4C01-AE8C-23148971155A}"
@@ -107,12 +109,18 @@ var
   I, J: Integer;
   RelativePath, FullPath, ExpectedHash: String;
   StillInstalled: Boolean;
+  StartupCommand: String;
 begin
   if CurStep = ssInstall then begin
     { Capture the previous inventory before the new one replaces it. }
     LoadStringsFromFile(ExpandConstant('{app}\.clipalka-files.txt'), PreviousFiles);
   end;
   if CurStep <> ssPostInstall then Exit;
+  { Keep an already-enabled startup entry pointing at the installed executable. }
+  if RegQueryStringValue(HKCU, '{#MyStartupKey}',
+    '{#MyAppName}', StartupCommand) and (StartupCommand <> '') then
+    RegWriteStringValue(HKCU, '{#MyStartupKey}',
+      '{#MyAppName}', '"' + ExpandConstant('{app}\{#MyAppExeName}') + '"');
   if not LoadStringsFromFile(ExpandConstant('{app}\.clipalka-files.txt'), CurrentFiles) then Exit;
 
   for I := 0 to GetArrayLength(PreviousFiles) - 1 do begin
@@ -141,5 +149,18 @@ begin
         end;
       end;
     end;
+  end;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  StartupCommand: String;
+begin
+  if CurUninstallStep <> usUninstall then Exit;
+  if RegQueryStringValue(HKCU, '{#MyStartupKey}',
+    '{#MyAppName}', StartupCommand) then begin
+    { A portable copy may have taken over startup; remove only this installation. }
+    if CompareText(StartupCommand, '"' + ExpandConstant('{app}\{#MyAppExeName}') + '"') = 0 then
+      RegDeleteValue(HKCU, '{#MyStartupKey}', '{#MyAppName}');
   end;
 end;

@@ -6,6 +6,8 @@ internal interface IControllerInput
 {
     string Id { get; }
     string Name { get; }
+    bool HasReading => true;
+    string Diagnostic => "";
     int[] ReadPressed();
     string Label(int input);
 }

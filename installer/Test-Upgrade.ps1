@@ -11,7 +11,7 @@ $testId = '{{817BA2F7-46D5-47B4-850F-368B4D457B1F}'
 $registry = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{817BA2F7-46D5-47B4-850F-368B4D457B1F}_is1'
 
 function Invoke-CheckedProcess([string]$File, [string[]]$Arguments) {
-    $process = Start-Process -FilePath $File -ArgumentList $Arguments -Wait -PassThru
+    $process = Start-Process -FilePath $File -ArgumentList $Arguments -WindowStyle Hidden -Wait -PassThru
     if ($process.ExitCode -ne 0) { throw "Process failed ($($process.ExitCode)): $File" }
 }
 
@@ -29,6 +29,16 @@ Set-Content -LiteralPath (Join-Path $payload 'version.txt') -Value 'old'
 & (Join-Path $PSScriptRoot 'New-InstallManifest.ps1') -SourceDirectory $payload
 $oldSetup = Compile-TestInstaller '0.9.2' 'old-setup'
 Invoke-CheckedProcess $oldSetup @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=`"$installed`"", "/LOG=`"$evidence/old-install.log`"")
+
+# TestInstaller redirects startup handling to this isolated key, never Run.
+$startupRegistry = 'HKCU:\Software\CLIPALKA\InstallerTest\Run'
+$startupValue = 'CLIPALKA Installer Test'
+if (Get-ItemProperty -LiteralPath $startupRegistry -Name $startupValue -ErrorAction SilentlyContinue) {
+    throw 'A previous installer startup test value exists; refusing to overwrite it.'
+}
+New-Item -Path $startupRegistry -Force | Out-Null
+Set-ItemProperty -LiteralPath $startupRegistry -Name $startupValue -Value '"C:\Old installation\CLIPALKA.exe"'
+try {
 
 New-Item -ItemType Directory -Path (Join-Path $installed 'Clips') | Out-Null
 $clip = Join-Path $installed 'Clips/keep.mp4'
@@ -57,6 +67,10 @@ $newSetup = Compile-TestInstaller '0.9.3' 'new-setup'
 # No /DIR: upgrade must discover the original installation directory itself.
 Invoke-CheckedProcess $newSetup @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$evidence/upgrade.log`"")
 
+if ((Get-ItemPropertyValue -LiteralPath $startupRegistry -Name $startupValue) -ne ('"' + (Join-Path $installed 'CLIPALKA.exe') + '"')) {
+    throw 'Upgrade did not refresh the enabled startup path.'
+}
+
 if ((Get-Content -LiteralPath (Join-Path $installed 'version.txt')).Trim() -ne 'new') { throw 'Previous directory was not upgraded.' }
 if (Test-Path -LiteralPath (Join-Path $installed 'obsolete.dll')) { throw 'Obsolete owned file was not removed.' }
 if (!(Test-Path -LiteralPath (Join-Path $installed 'modified.dll'))) { throw 'Modified file was deleted.' }
@@ -73,8 +87,14 @@ if (!(Test-Path -LiteralPath $unknown)) { throw 'Unknown user file was deleted.'
 Invoke-CheckedProcess $uninstallers[0].FullName @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$evidence/uninstall.log`"")
 if (Test-Path -LiteralPath (Join-Path $installed 'CLIPALKA.exe')) { throw 'Uninstall left application executable behind.' }
 if (Test-Path -LiteralPath $registry) { throw 'Uninstall registration remains.' }
+if (Get-ItemProperty -LiteralPath $startupRegistry -Name $startupValue -ErrorAction SilentlyContinue) {
+    throw 'Uninstall left its startup value behind.'
+}
 if ((Get-FileHash -LiteralPath $clip).Hash -ne $clipHash -or (Get-FileHash -LiteralPath $settings).Hash -ne $settingsHash) { throw 'Uninstall removed user data.' }
 if (!(Test-Path -LiteralPath $unknown)) { throw 'Uninstall removed unknown files.' }
 'PASS: previous directory reused; one installation/uninstaller; obsolete owned file removed; changed/unknown files preserved; recordings/settings preserved by upgrade and uninstall; unsafe inventory paths rejected.' |
     Set-Content -LiteralPath (Join-Path $evidence 'result.txt')
 Get-Content -LiteralPath (Join-Path $evidence 'result.txt')
+} finally {
+    Remove-ItemProperty -LiteralPath $startupRegistry -Name $startupValue -ErrorAction SilentlyContinue
+}

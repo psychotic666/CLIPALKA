@@ -24,6 +24,7 @@ public sealed class ControllerHotkeyService : IDisposable
     private readonly Action _saveReplay;
     private readonly Queue<string> _trace = new();
     private List<IControllerInput> _devices = [];
+    private RawControllerInputs? _rawInputs;
     private string _detectionSummary = "Обнаружение ещё не запускалось.";
     public string DetectionDetails => _detectionSummary + "\n" + string.Join("\n", _trace);
     private TimeSpan _lastScan = TimeSpan.FromSeconds(-3);
@@ -76,9 +77,11 @@ public sealed class ControllerHotkeyService : IDisposable
         _learningDevice = deviceId;
         _learningNeutral = false;
         _bestChord = [];
-        _learnUntil = _now() + TimeSpan.FromSeconds(15);
+        _learnUntil = _now() + TimeSpan.FromSeconds(30);
+        _feedbackUntil = TimeSpan.Zero;
         ResetMatchers();
-        PublishStatus("Отпусти кнопки, затем нажми сочетание и отпусти его. До 15 секунд.");
+        Trace("Learning started: " + deviceId);
+        PublishStatus("Отпусти кнопки, затем нажми сочетание и отпусти его. До 30 секунд.");
     }
 
     public void CancelLearning()
@@ -94,6 +97,12 @@ public sealed class ControllerHotkeyService : IDisposable
         if (_enumerateOverride is not null) { ApplyDevices(_enumerateOverride().ToList()); return; }
         var devices = new List<IControllerInput>();
         var errors = new List<string>();
+        try
+        {
+            _rawInputs ??= new RawControllerInputs();
+            devices.AddRange(_rawInputs.Enumerate());
+        }
+        catch (Exception error) { errors.Add("Raw Input: " + error.Message); }
         RawGameController[] connected = [];
         try { connected = RawGameController.RawGameControllers.ToArray(); }
         catch (Exception error) { errors.Add("Windows.Gaming.Input: " + error.Message); }
@@ -140,6 +149,8 @@ public sealed class ControllerHotkeyService : IDisposable
             if (IsLearning && now >= _learnUntil)
             {
                 CancelLearning();
+                _feedbackUntil = now + TimeSpan.FromSeconds(4);
+                Trace("Learning timed out without a captured chord");
                 PublishStatus("Назначение отменено: кнопки не выбраны. Можно попробовать снова.");
                 return;
             }
@@ -155,6 +166,12 @@ public sealed class ControllerHotkeyService : IDisposable
                 return;
             }
             var pressed = device.ReadPressed();
+            if (!device.HasReading)
+            {
+                ResetMatchers();
+                PublishInputs("Ожидание первого отчёта: нажми и отпусти кнопку геймпада");
+                return;
+            }
             PublishInputs(pressed.Length == 0 ? "Кнопки отпущены" : string.Join(" + ", pressed.Select(device.Label)));
             if (IsLearning)
             {
@@ -165,6 +182,8 @@ public sealed class ControllerHotkeyService : IDisposable
                         var binding = new ControllerBinding { DeviceId = device.Id, DeviceName = device.Name, Inputs = _bestChord,
                             Label = string.Join(" + ", _bestChord.Select(device.Label)) };
                         CancelLearning();
+                        _feedbackUntil = now + TimeSpan.FromSeconds(4);
+                        Trace("Binding captured: " + binding.Label);
                         BindingCaptured?.Invoke(binding);
                         PublishStatus("Сочетание выбрано. Нажми «Сохранить настройки».");
                     }
@@ -236,6 +255,7 @@ public sealed class ControllerHotkeyService : IDisposable
         _disposed = true;
         _timer.Stop();
         _timer.Tick -= Tick;
+        _rawInputs?.Dispose();
         _devices.Clear();
         CancelLearning();
     }

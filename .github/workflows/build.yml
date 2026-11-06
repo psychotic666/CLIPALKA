@@ -87,6 +87,22 @@ jobs:
         with:
           name: CLIPALKA-ui-preview
           path: ui-preview
+      - name: Verify Windows startup preference
+        shell: pwsh
+        run: |
+          $startupPath = Join-Path $PWD 'startup-verification'
+          dotnet publish/win-x64/CLIPALKA.dll --verify-startup $startupPath
+          if ($LASTEXITCODE -ne 0) {
+            if (Test-Path startup-verification/error.txt) { Get-Content startup-verification/error.txt }
+            throw "Startup preference verification failed: $LASTEXITCODE"
+          }
+          Get-Content startup-verification/result.txt
+      - name: Upload startup verification
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: CLIPALKA-startup-verification
+          path: startup-verification
       - name: Upload native audio verification
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
@@ -152,6 +168,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+          body_path: docs/releases/${{ github.ref_name }}.md
           draft: true
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: |

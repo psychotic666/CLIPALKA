@@ -6,6 +6,40 @@ namespace Clipalka.App.Services;
 
 internal static class ControllerHotkeyVerification
 {
+    public static async Task ProbePhysicalInputAsync(string directory)
+    {
+        Directory.CreateDirectory(directory);
+        using var raw = new RawControllerInputs();
+        using var writer = new StreamWriter(Path.Combine(directory, "input-reports.txt")) { AutoFlush = true };
+        var sources = raw.Enumerate().Concat(NativeControllerInputs.Enumerate()).ToArray();
+        var previous = new Dictionary<string, string>();
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        foreach (var source in sources) writer.WriteLine(source.Name + " [" + source.Id + "]");
+        while (clock.Elapsed < TimeSpan.FromMinutes(3))
+        {
+            foreach (var source in sources)
+            {
+                string sample;
+                try { sample = !source.HasReading ? "waiting for first report; " + source.Diagnostic : string.Join(" + ", source.ReadPressed().Select(source.Label)); }
+                catch (Exception error) { sample = error.Message; }
+                if (previous.GetValueOrDefault(source.Id) == sample) continue;
+                previous[source.Id] = sample;
+                writer.WriteLine($"{clock.Elapsed.TotalSeconds:F2}s {source.Name}: {sample}");
+            }
+            await Task.Delay(20);
+        }
+    }
+
+    public static string DescribeConnectedDevices()
+    {
+        using var service = new ControllerHotkeyService(Dispatcher.CurrentDispatcher, () => false,
+            () => { }, null, null, false);
+        var names = new List<string>();
+        service.DevicesChanged += devices => names.AddRange(devices.Select(device => device.Name + " [" + device.Id + "]"));
+        service.RefreshDevices();
+        return "Connected controller discovery (WGI + desktop):\n" + service.DetectionDetails + "\n" + string.Join("\n", names);
+    }
+
     public static string Run()
     {
         var source = new FixtureController();
@@ -62,6 +96,22 @@ internal static class ControllerHotkeyVerification
         Read(420);
         Read(440, 4, 8);
         Require(saves == 4, "reconnect and new press");
+        source.HasReading = false;
+        service.Configure(restored);
+        Read(460);
+        source.HasReading = true;
+        Read(480, 4, 8);
+        Require(saves == 4, "unknown raw state must not arm a held chord");
+        Read(500);
+        Read(520, 4, 8);
+        Require(saves == 5, "raw source arms after an observed release");
+        string? status = null;
+        service.StatusChanged += value => status = value;
+        service.StartLearning(source.Id);
+        Read(30600);
+        Require(!service.IsLearning && status?.Contains("Назначение отменено") == true, "learning timeout feedback");
+        Read(30620);
+        Require(status?.Contains("Назначение отменено") == true, "timeout reason remains visible after the next poll");
         return "PASS: real controller service learns, restores binding and dispatches replay; short press, extra gameplay input, once-per-press, blocked feedback and reconnect verified. Physical Bluetooth input still needs a connected controller.";
     }
 
@@ -75,6 +125,7 @@ internal static class ControllerHotkeyVerification
         public string Id => "fixture:controller";
         public string Name => "Controller verification";
         public int[] Pressed { get; set; } = [];
+        public bool HasReading { get; set; } = true;
         public int[] ReadPressed() => Pressed;
         public string Label(int input) => "Button " + input;
     }

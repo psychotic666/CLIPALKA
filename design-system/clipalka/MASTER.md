@@ -1,54 +1,66 @@
-# CLIPALKA — dark teal desktop
+# CLIPALKA — Signal
 
-The latest user reference is the compact dark Dota2ProTracker interface. It
-supersedes the earlier purple Studio styling. Keep the useful capture/gallery/
-settings structure, using functional C# / WPF controls under .NET 8.
+Approved on 6 November 2026: charcoal desktop UI with a violet accent. The user
+approved the Signal mockups, then explicitly replaced acid lime with violet.
+This supersedes the dark teal Dota2ProTracker direction and earlier Studio design.
+Use functional C# / WPF controls under .NET 8.
 
 ## Product structure
 
-- A 48-DIP dark teal title bar: CLIPALKA left, three compact navigation tabs,
-  native window actions right. Capture, My clips, Settings; no second sidebar.
-- Capture: concise heading and real buffer state, large last-clip preview,
-  three equal-height actions with actual English shortcut hints inside them.
-- Source, audio and clips-folder quick links, followed by three recent clips.
-- Gallery: three fluid columns with real thumbnails, ellipsized names with
-  tooltips, saved date, duration, playback and reveal-in-folder actions.
-- Settings: Video & files, Audio, Keyboard & controller; explicit Save action.
-- Controller settings: device choice, learning, current inputs, saved binding,
-  status and a separate game-only option. Explain blocked replay commands.
-- Quiet footer for replay state and current operation details.
+- Compact 48-DIP title bar, cut-frame brand mark, three text tabs with an active
+  underline: Capture, Clips, Settings. Native window actions; no sidebar.
+- Capture opens with a bold heading and an independent, real replay-buffer status.
+  Recording changes the heading to a recording message, with a red Stop control
+  and elapsed timer. Replay stays independently available when actually running.
+- The dominant preview is explicitly the last saved clip. Centered playback,
+  actual clip title, saved date and duration. Show the first-clip empty state
+  before a clip exists. Never present a saved frame as a live capture feed.
+- Action order: Save moment, Record / Stop, Microphone. Wide windows place actual
+  keyboard hints on the right inside outlined chips. Under 1400 DIPs, hints move
+  below labels without scaling down the whole interface. The microphone action
+  includes a real 16-segment violet level meter, dimmed for mute / unavailable
+  input. Read the applied microphone endpoint and gain, never simulated motion.
+  A shared WASAPI monitoring client runs only while Capture is visible; samples
+  are discarded, with no playback or additional audio files.
+- A quiet utility row links to source, configured FPS, audio and clips folder.
+- Three recent clips, direct thumbnails and ellipsized titles with tooltips.
+  Gallery uses the same surfaces and offers playback, search and reveal-in-folder.
+- Settings retain Video & files, Audio, Keyboard & controller and explicit Save.
+  Preserve learning, current input, saved bindings and blocked-command reasons.
+- Quiet status footer with an explicit replay on/off action.
+- Tray menu uses the same charcoal canvas, violet selection, stroke icons and
+  compact typography. Show real buffer / recording state, applied keyboard hints,
+  a Record / Stop label and disabled unavailable commands. Preserve native menu
+  dismissal, keyboard navigation and the system high-contrast renderer.
 
 ## Visual system
 
-- Flat canvas #080D11, panel #101B23, input #152129, border #2B3E48.
-- Title bar #0B252D, selected navigation #203F49.
-- Replay #187D85, focus #9AEBE5, ready #6BD4BD, recording #FF506C.
-- Text #ECF3F5, secondary #ABBDC6, tertiary #8EA4AF.
-- Segoe UI Variable Text / Segoe UI. Page headings 25–28, actions 16–19,
-  body 14–16, secondary labels 12–14. Never scale down the entire window.
-- Compact 6–8-DIP corners, thin borders, no decorative glow or large gradients.
+- Canvas #111213, panel #1B1D1E, input #202225, border #3C3E42.
+- Primary replay #9566F5, secondary accent #8952DE, hover #B58AFF,
+  focus #C8ADFF, ready / enabled #AF80FA. Recording #FF514F on #351D20.
+- Text #F5F5F6, secondary #BABBC2, tertiary #94959F.
+- Segoe UI Variable Text / Segoe UI; Consolas for keyboard hints and timers.
+  Capture heading 44 (36 compact), actions 19 (16 narrow), body 14-16.
+- Small 4-DIP corners, fine dividers, neutral surfaces. No ornamental glow,
+  surface gradients or nested dashboard cards. Image shading is functional.
 - 4/8 spacing rhythm, 16-DIP control gaps, 28-DIP page gutters.
-- Stroke icons from the existing vector family; no missing font glyphs.
-- Hover/pressed overlays cover the complete rounded control. Content padding
-  belongs on the presenter, not the template root containing the hover layer.
-- Keyboard focus remains visible. Selection is shown with surface and text.
+- Existing stroke icons plus the simple cut-frame mark. No font-glyph icons.
+- Hover covers the complete control. Padding belongs on ContentPresenter,
+  not the template root. Keyboard focus stays visible; tab order follows visuals.
 
-## Functional details
+## Functional and verification rules
 
-Normal startup shows a real saved clip, never demo artwork or a fake live feed.
-Source name, FPS, mute state and shortcut hints come from actual settings.
-Preserve native PCM continuity, capture selection, Bluetooth input backends,
-notifications and installer behavior.
+Normal startup uses real clips and applied settings. Only --render-ui uses the
+existing Assets/studio-demo.png and fixture devices. Do not claim a full 30-second
+buffer from a boolean running flag; production displays buffer active / off.
+Preserve capture selection, native PCM continuity, controller backends,
+notifications, installer and user data behavior. Do not publish automatically.
 
-The artwork in Assets/studio-demo.png is only used by --render-ui verification.
-The older studio-reference.png remains as historical design exploration.
-
-## Verification
-
-Render real WPF at 1585×992, 1280×800, 1180×760, 1024×768 and 150% DPI.
-Cover gallery, settings, empty, recording, error and muted states, device popup
-and keyboard focus. Assert action boundaries, shortcut baselines and full-control
-hover coverage. Capture and recent clips fit the default viewport.
-Keep core, native audio, replay export, controller service and installer checks.
-A physical Bluetooth controller remains necessary for hardware acceptance.
-Do not publish a release automatically.
+Render real WPF at 1585x992, 1280x800, 1180x760, 1024x768 and 150% DPI.
+Cover gallery, settings, empty, recording, error, muted, native device popup and
+keyboard focus. Verify control boundaries, compact shortcut baselines,
+left-to-right tab order and full-control hover coverage. Capture and recent clips
+must fit the default viewport. Keep core tests and native-load verification.
+Preserve the existing replay-export, controller-service and installer checks;
+run the full release checks before publishing a new version.
+Physical Sonar and Bluetooth acceptance remain separate from UI verification.

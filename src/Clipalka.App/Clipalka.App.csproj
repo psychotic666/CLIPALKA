@@ -11,8 +11,8 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <AssemblyName>CLIPALKA</AssemblyName>
     <RootNamespace>Clipalka.App</RootNamespace>
-    <Version>0.9.3-rc.3</Version>
-    <FileVersion>0.9.3.2</FileVersion>
+    <Version>0.9.3-rc.4</Version>
+    <FileVersion>0.9.3.3</FileVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\clipalka.ico</ApplicationIcon>
     <ClipalkaRecorderPath>$(MSBuildProjectDirectory)/../../artifacts/native/ScreenRecorderLib.dll</ClipalkaRecorderPath>
@@ -22,12 +22,14 @@
     <Resource Include="Assets\clipalka.ico" />
     <Resource Include="Assets\studio-demo.png" />
     <Content Include="../../native/LICENSE-ScreenRecorderLib.txt" Link="LICENSE-ScreenRecorderLib.txt" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets/LICENSE-NAudio.txt" Link="LICENSE-NAudio.txt" CopyToOutputDirectory="PreserveNewest" />
     <Using Remove="System.Drawing" />
     <Using Remove="System.Windows.Forms" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Clipalka.Core\Clipalka.Core.csproj" />
     <PackageReference Include="ScreenRecorderLib" Version="7.0.1" />
+    <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
   </ItemGroup>
   <!-- SRL's NuGet target injects the stock reference. Replace it after injection,
        so restore/build/publish all select the patched binary consistently. -->

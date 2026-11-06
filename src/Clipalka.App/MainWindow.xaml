@@ -9,21 +9,21 @@
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType"
         Loaded="Window_Loaded" Closing="Window_Closing" StateChanged="Window_StateChanged" SizeChanged="Window_SizeChanged">
-    <shell:WindowChrome.WindowChrome><shell:WindowChrome CaptionHeight="48" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="12"/></shell:WindowChrome.WindowChrome>
-    <Border x:Name="ShellRoot" Background="{StaticResource StudioCanvasBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12">
+    <shell:WindowChrome.WindowChrome><shell:WindowChrome CaptionHeight="48" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="4"/></shell:WindowChrome.WindowChrome>
+    <Border x:Name="ShellRoot" Background="{StaticResource StudioCanvasBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="4">
         <Grid ClipToBounds="True">
             <Grid.RowDefinitions><RowDefinition Height="48"/><RowDefinition Height="*"/><RowDefinition Height="26"/></Grid.RowDefinitions>
-            <Border Background="#0B252D" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" CornerRadius="12,12,0,0">
+            <Border Background="{StaticResource StudioCanvasBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" CornerRadius="4,4,0,0">
                 <Grid>
                     <StackPanel Orientation="Horizontal" Margin="24,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="CP" Foreground="{StaticResource AccentHoverBrush}" FontSize="24" FontWeight="Bold"/>
-                        <TextBlock Text="CLIPALKA" FontSize="21" FontWeight="SemiBold" Margin="14,0,0,0"/>
+                        <Path Data="M0,8 L0,0 L8,0 M20,0 L28,0 L28,8 M28,20 L28,28 L20,28 M8,28 L0,28 L0,20" Stroke="{StaticResource AccentHoverBrush}" StrokeThickness="3" Width="28" Height="28"/>
+                        <TextBlock Text="CLIPALKA" FontSize="23" FontWeight="Bold" Margin="16,0,0,0"/>
                     </StackPanel>
-                <Border x:Name="NavigationStrip" Width="520" Height="36" CornerRadius="6" Background="Transparent" Padding="0" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="230,0,0,0" shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                <Border x:Name="NavigationStrip" Width="520" Height="46" CornerRadius="6" Background="Transparent" Padding="0" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="230,0,0,0" shell:WindowChrome.IsHitTestVisibleInChrome="True">
                     <UniformGrid Columns="3">
-                        <Button x:Name="DashboardNavButton" Style="{StaticResource StudioTab}" Click="DashboardNavButton_Click" AutomationProperties.Name="Захват"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource StudioIcon}" Data="{StaticResource CaptureIcon}" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="18" Height="18" Margin="0,0,9,0"/><TextBlock Text="Захват" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" FontSize="14" VerticalAlignment="Center"/></StackPanel></Button>
-                        <Button x:Name="ClipsNavButton" Style="{StaticResource StudioTab}" Click="ClipsNavButton_Click" AutomationProperties.Name="Мои клипы"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource StudioIcon}" Data="{StaticResource ClipsIcon}" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="18" Height="18" Margin="0,0,9,0"/><TextBlock Text="Мои клипы" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" FontSize="14" VerticalAlignment="Center"/></StackPanel></Button>
-                        <Button x:Name="HotkeysNavButton" Style="{StaticResource StudioTab}" Click="HotkeysNavButton_Click" AutomationProperties.Name="Настройки"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource StudioIcon}" Data="{StaticResource SettingsIcon}" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="18" Height="18" Margin="0,0,9,0"/><TextBlock Text="Настройки" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" FontSize="14" VerticalAlignment="Center"/></StackPanel></Button>
+                        <Button x:Name="DashboardNavButton" Style="{StaticResource StudioTab}" Click="DashboardNavButton_Click" AutomationProperties.Name="Захват"><StackPanel Orientation="Horizontal"><TextBlock Text="Захват" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" FontSize="17" VerticalAlignment="Center"/></StackPanel></Button>
+                        <Button x:Name="ClipsNavButton" Style="{StaticResource StudioTab}" Click="ClipsNavButton_Click" AutomationProperties.Name="Мои клипы"><StackPanel Orientation="Horizontal"><TextBlock Text="Клипы" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" FontSize="17" VerticalAlignment="Center"/></StackPanel></Button>
+                        <Button x:Name="HotkeysNavButton" Style="{StaticResource StudioTab}" Click="HotkeysNavButton_Click" AutomationProperties.Name="Настройки"><StackPanel Orientation="Horizontal"><TextBlock Text="Настройки" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" FontSize="17" VerticalAlignment="Center"/></StackPanel></Button>
                     </UniformGrid>
                 </Border>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" shell:WindowChrome.IsHitTestVisibleInChrome="True">
@@ -47,15 +47,15 @@
 
                 <ScrollViewer x:Name="DashboardPage" Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
                     <StackPanel x:Name="DashboardLayoutGrid" Margin="28,24,28,20" MaxWidth="1480">
-                        <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="20,14" Margin="0,0,0,18">
-                            <Grid x:Name="DashboardHeadingGrid" Height="54"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <StackPanel VerticalAlignment="Center"><TextBlock x:Name="GreetingText" Text="Центр захвата" FontSize="25" FontWeight="SemiBold"/><TextBlock Text="Запись игры, звука и последних 30 секунд." Style="{StaticResource Caption}" FontSize="14" Margin="0,5,0,0"/></StackPanel>
-                                <Border Grid.Column="1" Background="#16333B" CornerRadius="6" Padding="14,8" VerticalAlignment="Center">
-                                    <StackPanel Orientation="Horizontal"><Ellipse x:Name="CaptureStateDot" Width="7" Height="7" Fill="{StaticResource SubtleBrush}" Margin="0,0,9,0"/><TextBlock x:Name="CaptureStateText" Text="Ожидание захвата" Foreground="{StaticResource SubtleBrush}" FontSize="13" FontWeight="SemiBold"/></StackPanel>
-                                </Border>
-                            </Grid>
-                        </Border>
-                        <controls:RoundedClipBorder x:Name="CapturePreviewBorder" Height="312" Background="{StaticResource PreviewBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8">
+                        <Grid x:Name="DashboardHeadingGrid" Height="68" Margin="0,0,0,16">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock x:Name="GreetingText" Text="Лови момент." FontSize="44" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Ellipse x:Name="CaptureStateDot" Width="9" Height="9" Fill="{StaticResource SubtleBrush}" Margin="0,0,10,0"/>
+                                <TextBlock x:Name="CaptureStateText" Text="Буфер выключен" Foreground="{StaticResource MutedBrush}" FontSize="16" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
+                        <controls:RoundedClipBorder x:Name="CapturePreviewBorder" Height="410" Background="{StaticResource PreviewBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0" CornerRadius="4">
                             <Grid>
                                 <Grid.Background><ImageBrush x:Name="CapturePreviewBrush" Stretch="UniformToFill" AlignmentX="Center" AlignmentY="Center"/></Grid.Background>
                                 <Border><Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#000D0F16" Offset="0.6"/><GradientStop Color="#900D0F16" Offset="1"/></LinearGradientBrush></Border.Background></Border>
@@ -64,48 +64,53 @@
                                     <TextBlock Text="Здесь появится твой первый момент" FontSize="26" FontWeight="SemiBold" Margin="0,16,0,0" HorizontalAlignment="Center"/>
                                     <TextBlock Text="Запусти игру и сохрани последние 30 секунд" Style="{StaticResource Caption}" FontSize="15" HorizontalAlignment="Center" Margin="0,10,0,0"/>
                                 </StackPanel>
-                                <Border Background="#DC0C171D" CornerRadius="6" Padding="14,7" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="18">
-                                    <TextBlock x:Name="PreviewCaptionText" Text="Нет сохранённых клипов" FontSize="14" TextTrimming="CharacterEllipsis" MaxWidth="650"/>
+                                <Border x:Name="LatestClipLabel" Visibility="Collapsed" Background="#CC111213" CornerRadius="3" Padding="12,6" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="18" IsHitTestVisible="False">
+                                    <TextBlock Text="ПОСЛЕДНИЙ КЛИП" FontSize="12" FontWeight="SemiBold"/>
                                 </Border>
-                                <Border Background="#D01A1B24" CornerRadius="6" Padding="14,7" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="18">
-                                    <TextBlock x:Name="CaptureQualityText" Text="H.264 · 60 FPS · Stereo" FontSize="14"/>
-                                </Border>
-                                <Button x:Name="OpenLatestClipButton" Background="#D01A1B24" BorderThickness="0" Padding="16,8" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="18" Click="OpenClip_Click" IsEnabled="False" AutomationProperties.Name="Открыть последний клип">
-                                    <StackPanel Orientation="Horizontal"><Path Style="{StaticResource StudioIcon}" Data="{StaticResource PlayIcon}" Width="16" Height="16" Stroke="White" Margin="0,0,8,0"/><TextBlock x:Name="LatestClipDurationText" Text="Открыть клип" FontSize="14" VerticalAlignment="Center"/></StackPanel>
+                                <StackPanel HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="22" MaxWidth="650">
+                                    <TextBlock x:Name="PreviewCaptionText" Text="Нет сохранённых клипов" FontSize="23" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock x:Name="LatestClipMetadataText" FontSize="14" Foreground="#E1E1E5" Margin="0,5,0,0"/>
+                                </StackPanel>
+                                <Button x:Name="OpenLatestClipButton" Style="{StaticResource CircularActionButton}" Width="76" Height="76" Background="#70111213" BorderBrush="White" HorizontalAlignment="Center" VerticalAlignment="Center" Click="OpenClip_Click" IsEnabled="False" AutomationProperties.Name="Воспроизвести последний клип">
+                                    <Path Data="M0,0 L20,13 L0,26 Z" Fill="White" Width="20" Height="26" Margin="5,0,0,0"/>
+                                    <Button.Visibility><Binding Path="IsEnabled" RelativeSource="{RelativeSource Self}"><Binding.Converter><BooleanToVisibilityConverter/></Binding.Converter></Binding></Button.Visibility>
                                 </Button>
+                                <Border Background="#CC111213" CornerRadius="3" Padding="8,4" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="18">
+                                    <TextBlock x:Name="LatestClipDurationText" Text="—" FontFamily="Consolas" FontSize="15"/>
+                                </Border>
                             </Grid>
                         </controls:RoundedClipBorder>
 
-                        <Grid x:Name="CaptureActionsGrid" Margin="0,16,0,0" Height="72">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="1.12*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <Button x:Name="RecordButton" Style="{StaticResource StudioActionButton}" Click="RecordButton_Click" AutomationProperties.Name="Начать или остановить запись">
-                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                    <Grid Margin="0,0,18,0" VerticalAlignment="Center"><Ellipse x:Name="RecordStartGlyph" Width="24" Height="24" Fill="{StaticResource DangerBrush}"/><Rectangle x:Name="RecordStopGlyph" Width="26" Height="26" RadiusX="5" RadiusY="5" Fill="{StaticResource DangerBrush}" Visibility="Collapsed"/></Grid>
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock x:Name="RecordButtonTitle" Text="Начать запись" FontSize="19" FontWeight="SemiBold"/><TextBlock x:Name="RecordHotkeyHint" Text="Shift + R" Foreground="{StaticResource MutedBrush}" FontSize="13" Margin="0,4,0,0"/></StackPanel>
+                        <Grid x:Name="CaptureActionsGrid" Margin="0,16,0,0" Height="60">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="1.2*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="1.1*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="0.9*"/></Grid.ColumnDefinitions>
+                            <Button x:Name="ReplayButton" TabIndex="0" Style="{StaticResource StudioReplayButton}" Click="ReplayButton_Click" AutomationProperties.Name="Сохранить последние 30 секунд">
+                                <Grid x:Name="ReplayActionLayout"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="0"/></Grid.RowDefinitions>
+                                    <TextBlock x:Name="ReplayButtonTitle" Text="Сохранить момент" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+                                    <Border x:Name="ReplayShortcutChip" Grid.Column="1" Style="{StaticResource SignalShortcut}" Margin="12,0,0,0" BorderBrush="#D8C4FF"><TextBlock x:Name="ReplayHotkeyHint" Text="Shift + Z" Style="{StaticResource SignalShortcutText}"/></Border>
                                 </Grid>
                             </Button>
-                            <Button x:Name="ReplayButton" Grid.Column="2" Style="{StaticResource StudioReplayButton}" Height="72" MinHeight="72" Click="ReplayButton_Click" AutomationProperties.Name="Сохранить последние 30 секунд">
-                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                    <Path Style="{StaticResource StudioIcon}" Data="{StaticResource SaveClipIcon}" Width="32" Height="32" Stroke="White" Margin="0,0,18,0"/>
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock x:Name="ReplayButtonTitle" Text="Сохранить 30 секунд" FontSize="19" FontWeight="SemiBold"/><TextBlock x:Name="ReplayHotkeyHint" Text="Shift + Z" Foreground="#D0F3F1" FontSize="13" Margin="0,4,0,0"/></StackPanel>
+                            <Button x:Name="RecordButton" TabIndex="1" Grid.Column="2" Style="{StaticResource StudioActionButton}" Click="RecordButton_Click" AutomationProperties.Name="Начать или остановить запись">
+                                <Grid x:Name="RecordActionLayout"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="0"/></Grid.RowDefinitions>
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center"><Grid Width="22" Margin="0,0,12,0"><Ellipse x:Name="RecordStartGlyph" Width="20" Height="20" Stroke="{StaticResource TextBrush}" StrokeThickness="2"/><Rectangle x:Name="RecordStopGlyph" Width="18" Height="18" RadiusX="2" RadiusY="2" Fill="{StaticResource DangerBrush}" Visibility="Collapsed"/></Grid><TextBlock x:Name="RecordButtonTitle" Text="Начать запись" FontSize="19" FontWeight="SemiBold"/></StackPanel>
+                                    <Border x:Name="RecordShortcutChip" Grid.Column="1" Style="{StaticResource SignalShortcut}" Margin="12,0,0,0"><TextBlock x:Name="RecordHotkeyHint" Text="Shift + R" Style="{StaticResource SignalShortcutText}"/></Border>
                                 </Grid>
                             </Button>
-                            <Button x:Name="MicrophoneButton" Grid.Column="4" Style="{StaticResource StudioActionButton}" Click="MicrophoneButton_Click" AutomationProperties.Name="Включить или выключить микрофон">
-                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                    <Path x:Name="MicrophoneIcon" Style="{StaticResource StudioIcon}" Data="{StaticResource MicIcon}" Width="28" Height="32" Stroke="{StaticResource SuccessBrush}" Margin="0,0,14,0"/>
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock x:Name="MicrophoneButtonTitle" Text="Микрофон включён" FontSize="19" FontWeight="SemiBold"/><TextBlock x:Name="MicrophoneHotkeyHint" Text="Shift + X" Foreground="{StaticResource MutedBrush}" FontSize="13" Margin="0,4,0,0"/></StackPanel>
-                                    <Border x:Name="MicrophoneToggleTrack" Grid.Column="2" Width="46" Height="26" CornerRadius="13" Background="{StaticResource SuccessBrush}" VerticalAlignment="Center" Margin="14,0,0,0"><Ellipse x:Name="MicrophoneToggleThumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Right" Margin="3"/></Border>
+                            <Button x:Name="MicrophoneButton" TabIndex="2" Grid.Column="4" Style="{StaticResource StudioActionButton}" Click="MicrophoneButton_Click" AutomationProperties.Name="Включить или выключить микрофон">
+                                <Grid x:Name="MicrophoneActionLayout"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="0"/></Grid.RowDefinitions>
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center"><Path x:Name="MicrophoneIcon" Style="{StaticResource StudioIcon}" Data="{StaticResource MicIcon}" Width="22" Height="27" Stroke="{StaticResource SuccessBrush}" Margin="0,0,10,0"/><TextBlock x:Name="MicrophoneButtonTitle" Text="Микрофон" FontSize="19" FontWeight="SemiBold" VerticalAlignment="Center"/></StackPanel>
+                                    <TextBlock x:Name="MicrophoneHotkeyHint" Grid.Row="1" Style="{StaticResource SignalShortcutText}" VerticalAlignment="Center" Margin="0,2,0,0"/>
+                                    <controls:AudioLevelMeter x:Name="MicrophoneLevelMeter" Grid.Column="1" Width="84" Height="22" Margin="10,0,0,0" VerticalAlignment="Center" Focusable="False" IsHitTestVisible="False" AutomationProperties.Name="Уровень микрофона"/>
                                 </Grid>
                             </Button>
                         </Grid>
-
                         <Grid x:Name="QuickSettingsGrid" Margin="0,12,0,0" Height="44">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Button Style="{StaticResource StudioQuickButton}" Click="VideoNavButton_Click" AutomationProperties.Name="Настроить источник захвата">
-                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="32"/><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/></Grid.ColumnDefinitions>
+                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="32"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="16"/></Grid.ColumnDefinitions>
+                                    <TextBlock x:Name="CaptureQualityText" Grid.Column="2" Text="60 FPS" FontFamily="Consolas" FontSize="13" VerticalAlignment="Center" Margin="8,0"/>
                                     <Path x:Name="SourceIdentityIcon" Style="{StaticResource StudioIcon}" Data="{StaticResource GameIcon}" Stroke="{StaticResource TextBrush}"/>
                                     <TextBlock x:Name="ReplaySourceText" Grid.Column="1" Text="Источник не выбран" FontSize="16" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
-                                    <Path Style="{StaticResource StudioIcon}" Data="{StaticResource ChevronRightIcon}" Grid.Column="2" Width="12" Height="14"/>
+                                    <Path Style="{StaticResource StudioIcon}" Data="{StaticResource ChevronRightIcon}" Grid.Column="3" Width="12" Height="14"/>
                                 </Grid>
                             </Button>
                             <Button Grid.Column="2" Style="{StaticResource StudioQuickButton}" Click="AudioSettingsNavButton_Click">
@@ -120,7 +125,7 @@
                             </Button>
                         </Grid>
 
-                        <Grid x:Name="RecentClipsHeader" Margin="0,24,0,12" Height="34"><TextBlock Text="Последние клипы" FontSize="20" FontWeight="SemiBold"/><Button Content="Открыть галерею →" Style="{StaticResource QuietButton}" FontSize="14" HorizontalAlignment="Right" MinHeight="28" Padding="10,0" Click="ClipsNavButton_Click"/></Grid>
+                        <Grid x:Name="RecentClipsHeader" Margin="0,16,0,12" Height="36"><TextBlock Text="Недавние клипы" FontSize="25" FontWeight="SemiBold"/><Button Content="Все клипы ↗" Style="{StaticResource QuietButton}" FontSize="14" HorizontalAlignment="Right" MinHeight="28" Padding="10,0" Click="ClipsNavButton_Click"/></Grid>
                         <Grid>
                             <ItemsControl x:Name="RecentClipsItemsControl">
                                 <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="3"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
@@ -128,10 +133,10 @@
                                 <ItemsControl.ItemTemplate><DataTemplate>
                                     <StackPanel>
                                         <Button Height="122" Padding="0" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Background="{StaticResource InputBrush}" Tag="{Binding FilePath}" Click="OpenClip_Click" AutomationProperties.Name="{Binding Title}" ToolTip="Открыть клип">
-                                            <Grid><Grid.Background><ImageBrush ImageSource="{Binding Thumbnail}" Stretch="UniformToFill" AlignmentX="Center" AlignmentY="Center"/></Grid.Background><Border Background="#D01A1B24" CornerRadius="6" Padding="8,3" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="10"><TextBlock Text="{Binding Duration}" FontSize="13"/></Border></Grid>
+                                            <Grid><Grid.Background><ImageBrush ImageSource="{Binding Thumbnail}" Stretch="UniformToFill" AlignmentX="Center" AlignmentY="Center"/></Grid.Background><Border Background="#D0111213" CornerRadius="6" Padding="8,3" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="10"><TextBlock Text="{Binding Duration}" FontSize="13"/></Border></Grid>
                                         </Button>
-                                        <TextBlock Text="{Binding Title}" ToolTip="{Binding Title}" FontSize="17" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,10,0,0"/>
-                                        <TextBlock Text="{Binding SavedAt}" Foreground="{StaticResource MutedBrush}" FontSize="14" Margin="0,4,0,0"/>
+                                        <TextBlock Text="{Binding Title}" ToolTip="{Binding Title}" FontSize="14" FontWeight="Normal" TextTrimming="CharacterEllipsis" Margin="0,8,0,0"/>
+                                        <TextBlock Text="{Binding SavedAt}" Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,4,0,0"/>
                                     </StackPanel>
                                 </DataTemplate></ItemsControl.ItemTemplate>
                             </ItemsControl>
@@ -151,10 +156,10 @@
                             <ItemsControl x:Name="GalleryItemsControl">
                                 <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="3"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate><DataTemplate>
-                                    <Border Style="{StaticResource SettingsPanel}" Padding="12" Margin="0,0,16,20">
+                                    <Border Padding="0" Margin="0,0,16,24">
                                         <StackPanel>
                                             <Button Tag="{Binding FilePath}" Click="OpenClip_Click" Padding="0" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Height="180" ToolTip="Воспроизвести клип" AutomationProperties.Name="{Binding Title}">
-                                                <Grid><Grid.Background><ImageBrush ImageSource="{Binding Thumbnail}" Stretch="UniformToFill" AlignmentX="Center" AlignmentY="Center"/></Grid.Background><Border Background="#DC0C171D" Padding="7,4" CornerRadius="5" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="8"><TextBlock Text="{Binding Duration}" FontSize="12" /></Border></Grid>
+                                                <Grid><Grid.Background><ImageBrush ImageSource="{Binding Thumbnail}" Stretch="UniformToFill" AlignmentX="Center" AlignmentY="Center"/></Grid.Background><Border Background="#DC111213" Padding="7,4" CornerRadius="5" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="8"><TextBlock Text="{Binding Duration}" FontSize="12" /></Border></Grid>
                                             </Button>
                                             <TextBlock Text="{Binding Title}" ToolTip="{Binding Title}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,12,0,6" />
                                             <TextBlock Text="{Binding SavedAt}" FontSize="12" Foreground="{StaticResource MutedBrush}" />
@@ -202,6 +207,8 @@
                                 <TextBlock Text="Поведение захвата" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,14"/>
                                 <CheckBox x:Name="AutoGameCheckBox" Style="{StaticResource ToggleCheckBox}" Content="Автоматически выбирать активную игру" IsChecked="True"/>
                                 <CheckBox x:Name="StartReplayCheckBox" Style="{StaticResource ToggleCheckBox}" Content="Запускать replay вместе с CLIPALKA" IsChecked="True"/>
+                                <CheckBox x:Name="StartWithWindowsCheckBox" Style="{StaticResource ToggleCheckBox}" Content="Запускать CLIPALKA вместе с Windows"/>
+                                <TextBlock Text="Приложение откроется после входа в Windows. Применяется кнопкой «Сохранить настройки»." Style="{StaticResource Caption}" Margin="0,4,0,0"/>
                             </StackPanel></Border>
                             <Border Style="{StaticResource SettingsPanel}"><StackPanel>
                                 <TextBlock Text="Проверка записи и звука" FontSize="20" FontWeight="SemiBold"/>
@@ -239,7 +246,7 @@
                                         <TextBlock Text="Ввод с контроллера" Style="{StaticResource FieldLabel}"/>
                                         <TextBlock x:Name="ControllerInputText" Text="Нажми кнопки — здесь появится распознанный ввод" FontSize="14" Foreground="{StaticResource AccentHoverBrush}" TextWrapping="Wrap"/>
                                     </StackPanel></Border>
-                                    <Border Background="{StaticResource InputBrush}" CornerRadius="8" Padding="16,12"><TextBlock x:Name="ControllerBindingText" Text="Не назначено" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" /></Border>
+                                    <Border Background="{StaticResource InputBrush}" CornerRadius="4" Padding="16,12"><TextBlock x:Name="ControllerBindingText" Text="Не назначено" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" /></Border>
                                     <WrapPanel Margin="0,14,0,0"><Button x:Name="LearnControllerButton" Style="{StaticResource PrimaryButton}" MinHeight="42" Content="Назначить сочетание" Click="LearnControllerButton_Click" Margin="0,0,12,0" /><Button Content="Отключить" Click="ClearControllerButton_Click" /></WrapPanel>
                                     <CheckBox x:Name="ControllerGameOnlyCheckBox" Style="{StaticResource ToggleCheckBox}" Content="Геймпад срабатывает только в активной игре" Margin="0,14,0,0"/>
                                     <TextBlock Text="Нажми сочетание один раз. Другие игровые кнопки не мешают. Перед следующим клипом отпусти кнопки сочетания. Назначение применяется после сохранения настроек." TextWrapping="Wrap" FontSize="13" Foreground="{StaticResource MutedBrush}" Margin="0,10,0,0" />
@@ -255,7 +262,7 @@
                                 <Grid Margin="0,0,0,12"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions><TextBlock Text="Открыть галерею" FontSize="15" VerticalAlignment="Center"/><TextBox x:Name="GalleryHotkeyTextBox" Grid.Column="1" Style="{StaticResource HotkeyBox}" MinHeight="44" PreviewKeyDown="HotkeyTextBox_PreviewKeyDown" AutomationProperties.Name="Открыть галерею"/></Grid>
                                 <CheckBox x:Name="GameOnlyHotkeysCheckBox" Style="{StaticResource ToggleCheckBox}" Content="Клавиатурные хоткеи только в активной игре" IsChecked="True" Margin="0,8,0,0"/>
                             </StackPanel></Border>
-                            <TextBlock Text="CLIPALKA v0.9.3 RC3 · Все клипы хранятся на твоём компьютере" Style="{StaticResource Caption}" FontSize="13" Margin="4,8"/>
+                            <TextBlock Text="CLIPALKA v0.9.3 RC4 · Все клипы хранятся на твоём компьютере" Style="{StaticResource Caption}" FontSize="13" Margin="4,8"/>
                         </StackPanel>
                     </ScrollViewer>
                 </Grid>
