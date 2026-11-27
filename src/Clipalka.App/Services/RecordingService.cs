@@ -241,7 +241,9 @@ public sealed class RecordingService : IAsyncDisposable
             var shouldReplaceTarget = CaptureSelectionPolicy.ShouldReplaceReplayTarget(
                     current.Target.IsApplication,
                     currentIsAlive,
-                    candidate.IsApplication);
+                    candidate.IsApplication,
+                    candidate.IsKnownGame,
+                    current.Target.WindowHandle == candidate.WindowHandle);
             var segmentLength = TimeSpan.FromSeconds(Math.Max(40, settings.ReplaySeconds + 10));
             if (!shouldReplaceTarget && DateTimeOffset.UtcNow - current.StartedAtUtc < segmentLength)
             {

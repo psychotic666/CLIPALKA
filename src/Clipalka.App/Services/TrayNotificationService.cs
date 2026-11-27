@@ -11,8 +11,11 @@ public sealed class TrayNotificationService : IDisposable
 
     public TrayNotificationService()
     {
-        _icon = Icon.ExtractAssociatedIcon(Environment.ProcessPath ?? string.Empty)
-                ?? (Icon)SystemIcons.Application.Clone();
+        var resource = System.Windows.Application.GetResourceStream(
+            new Uri("pack://application:,,,/CLIPALKA;component/Assets/clipalka.ico"));
+        using (var stream = resource.Stream)
+        using (var icon = new Icon(stream, SystemInformation.SmallIconSize))
+            _icon = (Icon)icon.Clone();
 
         _menu = new TrayMenu(() => OpenRequested?.Invoke(), () => ToggleRecordingRequested?.Invoke(),
             () => SaveReplayRequested?.Invoke(), () => ExitRequested?.Invoke());

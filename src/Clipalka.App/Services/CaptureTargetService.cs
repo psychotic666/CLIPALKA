@@ -10,7 +10,8 @@ public sealed record CaptureTarget(
     RecordingSourceBase Source,
     string Name,
     bool IsApplication,
-    nint WindowHandle = default);
+    nint WindowHandle = default,
+    bool IsKnownGame = false);
 
 public sealed class CaptureTargetService
 {
@@ -20,14 +21,15 @@ public sealed class CaptureTargetService
         "textinputhost", "applicationframehost", "systemsettings", "dwm", "lockapp",
         "chrome", "msedge", "firefox", "opera", "brave", "arc", "discord", "telegram", "spotify",
         "code", "devenv", "windowsterminal", "cmd", "powershell", "pwsh", "notepad",
-        "steam", "steamwebhelper", "epicgameslauncher", "battle.net", "upc", "eadesktop"
+        "steam", "steamwebhelper", "epicgameslauncher", "battle.net", "upc", "eadesktop",
+        "gamenetwork", "chatgpt", "codex"
     };
 
     public CaptureTarget Resolve(AppSettings settings, CapturePurpose purpose)
     {
         var window = nint.Zero;
         var name = string.Empty;
-        var hasForegroundGame = TryGetForegroundGameWindow(out window, out name);
+        var hasForegroundGame = TryGetForegroundGameWindow(out window, out name, out var isKnownGame);
         if (CaptureSelectionPolicy.ShouldCaptureForegroundWindow(
                 purpose, settings.AutoCaptureGame, hasForegroundGame))
         {
@@ -36,7 +38,7 @@ public sealed class CaptureTargetService
                 IsBorderRequired = false,
                 IsCursorCaptureEnabled = RecordingQualityProfile.CaptureMousePointer
             };
-            return new CaptureTarget(source, name, true, window);
+            return new CaptureTarget(source, name, true, window, isKnownGame);
         }
 
         var display = string.IsNullOrWhiteSpace(settings.DisplayDeviceName)
@@ -72,7 +74,8 @@ public sealed class CaptureTargetService
                 source,
                 previousTarget.Name,
                 true,
-                previousTarget.WindowHandle);
+                previousTarget.WindowHandle,
+                previousTarget.IsKnownGame);
         }
 
         return Resolve(settings, CapturePurpose.ReplayBuffer);
@@ -90,11 +93,12 @@ public sealed class CaptureTargetService
         return string.Equals(name, "CLIPALKA", StringComparison.OrdinalIgnoreCase) ? null : name;
     }
 
-    private static bool TryGetForegroundGameWindow(out nint handle, out string name)
+    private static bool TryGetForegroundGameWindow(out nint handle, out string name, out bool isKnownGame)
     {
         handle = GetForegroundWindow();
         name = string.Empty;
-        if (handle == nint.Zero || !IsGameCandidate(handle, out name, out _))
+        isKnownGame = false;
+        if (handle == nint.Zero || !IsGameCandidate(handle, out name, out isKnownGame))
         {
             handle = nint.Zero;
             return false;
@@ -102,10 +106,10 @@ public sealed class CaptureTargetService
         return true;
     }
 
-    private static bool IsGameCandidate(nint handle, out string name, out double monitorCoverage)
+    private static bool IsGameCandidate(nint handle, out string name, out bool isKnownGame)
     {
         name = string.Empty;
-        monitorCoverage = 0;
+        isKnownGame = false;
         if (!IsWindowVisible(handle) || !GetWindowRect(handle, out var windowRect))
         {
             return false;
@@ -113,15 +117,17 @@ public sealed class CaptureTargetService
 
         var width = Math.Max(0, windowRect.Right - windowRect.Left);
         var height = Math.Max(0, windowRect.Bottom - windowRect.Top);
-        if (width < 800 || height < 500)
+        if (width < 320 || height < 240)
         {
             return false;
         }
 
         GetWindowThreadProcessId(handle, out var processId);
+        string processName;
         try
         {
             using var process = Process.GetProcessById((int)processId);
+            processName = process.ProcessName;
             if (NonCaptureProcesses.Contains(process.ProcessName))
             {
                 return false;
@@ -135,6 +141,10 @@ public sealed class CaptureTargetService
         {
             return false;
         }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
 
         var monitor = MonitorFromWindow(handle, MonitorDefaultToNearest);
         var monitorInfo = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
@@ -145,8 +155,9 @@ public sealed class CaptureTargetService
 
         var monitorWidth = Math.Max(1, monitorInfo.Monitor.Right - monitorInfo.Monitor.Left);
         var monitorHeight = Math.Max(1, monitorInfo.Monitor.Bottom - monitorInfo.Monitor.Top);
-        monitorCoverage = Math.Min(1d, (double)(width * height) / (monitorWidth * monitorHeight));
-        return monitorCoverage >= 0.30;
+        var monitorCoverage = Math.Min(1d, (double)width * height / ((double)monitorWidth * monitorHeight));
+        isKnownGame = CaptureSelectionPolicy.IsKnownGameProcess(processName);
+        return CaptureSelectionPolicy.HasGameWindowSize(processName, width, height, monitorCoverage);
     }
 
     private static string? GetForegroundApplicationName()

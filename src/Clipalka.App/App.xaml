@@ -4,6 +4,7 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/Editions.xaml" />
                 <ResourceDictionary Source="Themes/Studio.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>

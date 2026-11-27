@@ -11,8 +11,8 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <AssemblyName>CLIPALKA</AssemblyName>
     <RootNamespace>Clipalka.App</RootNamespace>
-    <Version>0.9.3-rc.4</Version>
-    <FileVersion>0.9.3.3</FileVersion>
+    <Version>0.9.3</Version>
+    <FileVersion>0.9.3.4</FileVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\clipalka.ico</ApplicationIcon>
     <ClipalkaRecorderPath>$(MSBuildProjectDirectory)/../../artifacts/native/ScreenRecorderLib.dll</ClipalkaRecorderPath>

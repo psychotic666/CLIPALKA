@@ -25,7 +25,7 @@ public partial class MainWindow : Window
     public void RenderUiSamples(string directory)
     {
         Directory.CreateDirectory(directory);
-        GreetingText.Text = "Лови момент.";
+        GreetingText.Text = "Монтажный стол";
         _settings.FramesPerSecond = 120;
         _settings.RecordHotkey = "Shift+R";
         _settings.ReplayHotkey = "Shift+Z";
@@ -67,6 +67,7 @@ public partial class MainWindow : Window
             ("ui-1280", new Size(1280, 800), "home"),
             ("ui-compact", new Size(1180, 760), "home"),
             ("ui-narrow", new Size(1024, 768), "home"),
+            ("ui-minimum", new Size(960, 640), "home"),
             ("ui-150dpi", new Size(1280, 800), "home"),
             ("ui-gallery", new Size(1280, 800), "gallery"),
             ("ui-diagnostics", new Size(1280, 800), "diagnostics"),
@@ -88,7 +89,7 @@ public partial class MainWindow : Window
             RecordButtonTitle.Text = "Начать запись";
             RecordHotkeyHint.Text = "Shift + R";
             RecordHotkeyHint.FontSize = 13;
-            GreetingText.Text = "Лови момент.";
+            GreetingText.Text = "Монтажный стол";
             RecordButton.BorderBrush = (Brush)FindResource("BorderBrush");
             RecordButton.Background = (Brush)FindResource("StudioSurfaceBrush");
             MicrophoneButtonTitle.Text = "Микрофон";
@@ -178,16 +179,14 @@ public partial class MainWindow : Window
                 VideoPage.ScrollToVerticalOffset(360);
                 root.UpdateLayout();
             }
-            var hintBottom = RecordHotkeyHint.TransformToAncestor(CaptureActionsGrid)
-                .Transform(new Point(0, RecordHotkeyHint.ActualHeight)).Y;
-            if ((page is "home" or "empty" or "recording" or "error") && (hintBottom > CaptureActionsGrid.ActualHeight || Math.Abs(ReplayButton.ActualHeight - CaptureActionsGrid.Height) > 0.1))
-                throw new InvalidOperationException("Capture action layout clips its controls.");
-            if (page is "home" or "empty" or "recording" or "error")
+            if (DashboardPage.Visibility == Visibility.Visible)
             {
-                var hintBaselines = new[] { RecordHotkeyHint, ReplayHotkeyHint, MicrophoneHotkeyHint }
-                    .Select(hint => hint.TransformToAncestor(CaptureActionsGrid).Transform(new Point(0, hint.ActualHeight)).Y).ToArray();
-                if ((size.Width < 1400 && page != "recording" && hintBaselines.Max() - hintBaselines.Min() > 2) || hintBaselines.Max() > CaptureActionsGrid.ActualHeight)
-                    throw new InvalidOperationException($"Action shortcuts must share a visible baseline at every window size: {name} [{string.Join(", ", hintBaselines)}]");
+                foreach (var (button, hint) in new[] { (ReplayButton, ReplayHotkeyHint), (RecordButton, RecordHotkeyHint), (MicrophoneButton, MicrophoneHotkeyHint) })
+                {
+                    var bounds = hint.TransformToAncestor(button).TransformBounds(new Rect(hint.RenderSize));
+                    if (bounds.Top < 0 || bounds.Bottom > button.ActualHeight + 1 || bounds.Right > button.ActualWidth + 1)
+                        throw new InvalidOperationException($"Shortcut does not fit in {button.Name} at {name}.");
+                }
             }
             if (name == "ui-1585")
             {
@@ -346,7 +345,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         Width = Math.Min(Width, SystemParameters.WorkArea.Width - 24);
         Height = Math.Min(Height, SystemParameters.WorkArea.Height - 24);
-        GreetingText.Text = "Лови момент.";
+        GreetingText.Text = "Монтажный стол";
         ShowPage(DashboardPage, DashboardNavButton);
         foreach (var field in new[] { OutputPathTextBox, RecordHotkeyTextBox, ReplayHotkeyTextBox, MicrophoneHotkeyTextBox, GalleryHotkeyTextBox })
             field.TextChanged += SettingsFieldChanged;
@@ -733,6 +732,8 @@ public partial class MainWindow : Window
         var clips = _galleryClips.Where(clip => string.IsNullOrEmpty(query) || clip.Title.Contains(query, StringComparison.OrdinalIgnoreCase)).ToList();
         GalleryItemsControl.ItemsSource = clips;
         GalleryEmptyPanel.Visibility = clips.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        GalleryEmptyTitle.Text = query.Length > 0 ? "Совпадений нет" : "Пока нет клипов";
+        GalleryEmptyHint.Text = query.Length > 0 ? "Попробуй другое название игры или клипа." : "Сохрани момент на экране захвата.";
         GalleryCountText.Text = $"Клипов: {clips.Count} · последние 100 записей";
     }
 
@@ -776,14 +777,6 @@ public partial class MainWindow : Window
         }
     }
 
-    private void Window_StateChanged(object? sender, EventArgs e)
-    {
-        if (WindowState == WindowState.Minimized)
-        {
-            HideToTray();
-        }
-    }
-
     private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         ApplyWindowScale(e.NewSize);
@@ -794,29 +787,13 @@ public partial class MainWindow : Window
         // Adapt the desktop layout without shrinking the visual tree.
         ShellRoot.LayoutTransform = Transform.Identity;
         var compact = size.Width < 1400;
-        NavigationStrip.Width = Math.Max(340, Math.Min(520, size.Width - 410));
+        MicrophoneLevelMeter.Width = size.Width < 1120 ? 40 : 68;
         GreetingText.FontSize = compact ? 36 : 44;
         GreetingText.LineHeight = double.NaN;
         DashboardHeadingGrid.Height = compact ? 52 : 68;
-        CapturePreviewBorder.Height = Math.Clamp(size.Height - (compact ? 574 : 600), 160, 430);
-        CaptureActionsGrid.Height = compact ? 72 : 60;
-        var actionFontSize = size.Width < 1100 ? 16 : 19;
-        RecordButtonTitle.FontSize = ReplayButtonTitle.FontSize = actionFontSize;
-        MicrophoneButtonTitle.FontSize = actionFontSize;
-        ReplayHotkeyHint.FontSize = MicrophoneHotkeyHint.FontSize = 13;
-        MicrophoneLevelMeter.Width = size.Width < 1100 ? 64 : 84;
-        foreach (var (layout, chip) in new[] { (ReplayActionLayout, ReplayShortcutChip), (RecordActionLayout, RecordShortcutChip) })
-        {
-            layout.RowDefinitions[1].Height = new GridLength(compact ? 26 : 0);
-            Grid.SetRow(chip, compact ? 1 : 0);
-            Grid.SetColumn(chip, compact ? 0 : 1);
-            chip.HorizontalAlignment = compact ? HorizontalAlignment.Left : HorizontalAlignment.Right;
-            chip.Margin = compact ? new Thickness(0, 2, 0, 0) : new Thickness(12, 0, 0, 0);
-            chip.BorderThickness = compact ? new Thickness(0) : new Thickness(1);
-            chip.Padding = compact ? new Thickness(0) : new Thickness(8, 4, 8, 4);
-        }
-        MicrophoneActionLayout.RowDefinitions[1].Height = new GridLength(compact ? 26 : 0);
-        MicrophoneHotkeyHint.Visibility = compact ? Visibility.Visible : Visibility.Collapsed;
+        CaptureDesk.Height = Math.Clamp(size.Height - 380, 300, 520);
+        ReplayButtonTitle.FontSize = compact ? 16 : 20;
+        RecordButtonTitle.FontSize = MicrophoneButtonTitle.FontSize = compact ? 15 : 18;
         System.Windows.Shell.WindowChrome.GetWindowChrome(this).CaptionHeight = 48;
         return 1;
     }
@@ -975,13 +952,13 @@ public partial class MainWindow : Window
         ToggleReplayButton.IsEnabled = !_isBusy;
         ToggleReplayButton.Content = _recordingService.IsReplayBuffering ? "Остановить replay" : "Включить replay";
         CaptureQualityText.Text = $"{_settings.FramesPerSecond} FPS";
-        SourceIdentityIcon.Data = (Geometry)FindResource(_recordingService.IsReplayCapturingApplication ? "GameIcon" : "CaptureIcon");
+        SourceIdentityIcon.Data = (Geometry)FindResource(_recordingService.IsReplayCapturingApplication ? "GameIcon" : "MonitorGlyph");
         RecordStartGlyph.Visibility = recording ? Visibility.Collapsed : Visibility.Visible;
         RecordStopGlyph.Visibility = recording ? Visibility.Visible : Visibility.Collapsed;
         DiagnosticsButton.Content = _recordingService.IsDiagnosing ? "Остановить проверку" : "Начать проверку (90 секунд)";
         DisplayComboBox.IsEnabled = FpsComboBox.IsEnabled = OutputDeviceComboBox.IsEnabled = InputDeviceComboBox.IsEnabled = !_recordingService.IsDiagnosing;
         RecordButtonTitle.Text = recording ? "Остановить" : "Начать запись";
-        GreetingText.Text = recording ? "Запись идёт." : "Лови момент.";
+        GreetingText.Text = recording ? "Запись идёт." : "Монтажный стол";
         RecordButton.BorderBrush = (Brush)FindResource(recording ? "DangerBrush" : "BorderBrush");
         RecordButton.Background = (Brush)FindResource(recording ? "DangerSurfaceBrush" : "StudioSurfaceBrush");
         MicrophoneButtonTitle.Text = _recordingService.IsMicrophoneMuted ? "Выключен" : "Микрофон";

@@ -6,10 +6,10 @@
   #define MyStartupKey "Software\Microsoft\Windows\CurrentVersion\Run"
 #endif
 #ifndef MyAppVersion
-  #define MyAppVersion "0.9.3-rc.4"
+  #define MyAppVersion "0.9.3"
 #endif
 #ifndef MyAppFileVersion
-  #define MyAppFileVersion "0.9.3.3"
+  #define MyAppFileVersion "0.9.3.4"
 #endif
 #ifndef MyAppId
   #define MyAppId "{{1B00B859-694D-4C01-AE8C-23148971155A}"
@@ -57,13 +57,14 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Source: "{#MyAppSourceDir}\*"; DestDir: "{app}"; Excludes: ".clipalka-files.txt"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#MyAppSourceDir}\.clipalka-files.txt"; DestDir: "{app}"; Flags: ignoreversion
 #ifndef TestInstaller
+Source: "..\src\Clipalka.App\Assets\clipalka.ico"; DestDir: "{app}"; DestName: "clipalka-double.ico"; Flags: ignoreversion
 Source: "..\artifacts\VC_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
 #endif
 
 [Icons]
 #ifndef TestInstaller
-Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\clipalka-double.ico"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\clipalka-double.ico"; Tasks: desktopicon
 Name: "{autoprograms}\Удалить CLIPALKA"; Filename: "{uninstallexe}"; IconFilename: "{uninstallexe}"
 #endif
 Name: "{app}\Удалить CLIPALKA"; Filename: "{uninstallexe}"; IconFilename: "{uninstallexe}"

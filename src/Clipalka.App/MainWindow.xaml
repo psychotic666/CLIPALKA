@@ -8,24 +8,18 @@
         WindowStartupLocation="CenterScreen" FontFamily="Segoe UI Variable Text, Segoe UI"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType"
-        Loaded="Window_Loaded" Closing="Window_Closing" StateChanged="Window_StateChanged" SizeChanged="Window_SizeChanged">
+        Loaded="Window_Loaded" Closing="Window_Closing" SizeChanged="Window_SizeChanged">
     <shell:WindowChrome.WindowChrome><shell:WindowChrome CaptionHeight="48" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="4"/></shell:WindowChrome.WindowChrome>
     <Border x:Name="ShellRoot" Background="{StaticResource StudioCanvasBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="4">
         <Grid ClipToBounds="True">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="96"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
             <Grid.RowDefinitions><RowDefinition Height="48"/><RowDefinition Height="*"/><RowDefinition Height="26"/></Grid.RowDefinitions>
-            <Border Background="{StaticResource StudioCanvasBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" CornerRadius="4,4,0,0">
+            <Border Grid.Column="1" Background="{StaticResource StudioCanvasBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" CornerRadius="4,4,0,0">
                 <Grid>
                     <StackPanel Orientation="Horizontal" Margin="24,0,0,0" VerticalAlignment="Center">
-                        <Path Data="M0,8 L0,0 L8,0 M20,0 L28,0 L28,8 M28,20 L28,28 L20,28 M8,28 L0,28 L0,20" Stroke="{StaticResource AccentHoverBrush}" StrokeThickness="3" Width="28" Height="28"/>
-                        <TextBlock Text="CLIPALKA" FontSize="23" FontWeight="Bold" Margin="16,0,0,0"/>
+                        <TextBlock Text="CLIPALKA" FontFamily="Segoe UI Black" FontSize="20" FontWeight="Black" VerticalAlignment="Center"/>
                     </StackPanel>
-                <Border x:Name="NavigationStrip" Width="520" Height="46" CornerRadius="6" Background="Transparent" Padding="0" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="230,0,0,0" shell:WindowChrome.IsHitTestVisibleInChrome="True">
-                    <UniformGrid Columns="3">
-                        <Button x:Name="DashboardNavButton" Style="{StaticResource StudioTab}" Click="DashboardNavButton_Click" AutomationProperties.Name="Захват"><StackPanel Orientation="Horizontal"><TextBlock Text="Захват" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" FontSize="17" VerticalAlignment="Center"/></StackPanel></Button>
-                        <Button x:Name="ClipsNavButton" Style="{StaticResource StudioTab}" Click="ClipsNavButton_Click" AutomationProperties.Name="Мои клипы"><StackPanel Orientation="Horizontal"><TextBlock Text="Клипы" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" FontSize="17" VerticalAlignment="Center"/></StackPanel></Button>
-                        <Button x:Name="HotkeysNavButton" Style="{StaticResource StudioTab}" Click="HotkeysNavButton_Click" AutomationProperties.Name="Настройки"><StackPanel Orientation="Horizontal"><TextBlock Text="Настройки" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" FontSize="17" VerticalAlignment="Center"/></StackPanel></Button>
-                    </UniformGrid>
-                </Border>
+
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" shell:WindowChrome.IsHitTestVisibleInChrome="True">
                         <Button Style="{StaticResource TitleBarButton}" Click="MinimizeButton_Click" AutomationProperties.Name="Свернуть"><Path Data="M0,5 L12,5" Stroke="{StaticResource TextBrush}" StrokeThickness="1" Width="12" Height="10"/></Button>
                         <Button Style="{StaticResource TitleBarButton}" Click="MaximizeButton_Click" AutomationProperties.Name="Развернуть или восстановить"><Rectangle Width="12" Height="12" Stroke="{StaticResource TextBrush}" StrokeThickness="1"/></Button>
@@ -34,13 +28,21 @@
                 </Grid>
             </Border>
 
-            <Grid Grid.Row="1">
+            <Border Grid.RowSpan="3" Background="{StaticResource SidebarBrush}">
+                <StackPanel>
+                    <Image Source="Assets/clipalka-icon.png" Width="44" Height="44" Margin="0,17,0,29" RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="CLIPALKA"/>
+                    <Button x:Name="DashboardNavButton" Style="{StaticResource StudioTab}" Click="DashboardNavButton_Click" AutomationProperties.Name="Захват"><StackPanel Orientation="Vertical"><Path Style="{StaticResource NavGlyph}" Margin="0,0,0,4" HorizontalAlignment="Center" Data="{StaticResource CaptureTabGlyph}"/><TextBlock Text="Захват" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" FontSize="12" VerticalAlignment="Center"/></StackPanel></Button>
+                        <Button x:Name="ClipsNavButton" Style="{StaticResource StudioTab}" Click="ClipsNavButton_Click" AutomationProperties.Name="Мои клипы"><StackPanel Orientation="Vertical"><Path Style="{StaticResource NavGlyph}" Margin="0,0,0,4" HorizontalAlignment="Center" Data="{StaticResource ClipsTabGlyph}"/><TextBlock Text="Клипы" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" FontSize="12" VerticalAlignment="Center"/></StackPanel></Button>
+                        <Button x:Name="HotkeysNavButton" Style="{StaticResource StudioTab}" Click="HotkeysNavButton_Click" AutomationProperties.Name="Настройки"><StackPanel Orientation="Vertical"><Path Style="{StaticResource NavGlyph}" Margin="0,0,0,4" HorizontalAlignment="Center" Data="{StaticResource SettingsTabGlyph}"/><TextBlock Text="Настройки" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" FontSize="12" VerticalAlignment="Center"/></StackPanel></Button>
+                </StackPanel>
+            </Border>
+            <Grid Grid.Row="1" Grid.Column="1">
                 <Grid.RowDefinitions><RowDefinition Height="0"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
 
                 <Border x:Name="ErrorBanner" Grid.Row="1" Visibility="Collapsed" Margin="28,0,28,8" Background="#39202D" BorderBrush="#8C3B54" BorderThickness="1" CornerRadius="10" Padding="16,12">
                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="30"/><ColumnDefinition Width="*"/><ColumnDefinition Width="36"/></Grid.ColumnDefinitions>
                         <Path Style="{StaticResource StudioIcon}" Data="{StaticResource WarningIcon}" Stroke="#FF9CB1" Width="20" Height="20"/>
-                        <StackPanel Grid.Column="1"><TextBlock x:Name="ErrorBannerTitle" Text="Операция не выполнена" FontSize="14" FontWeight="SemiBold"/><TextBlock x:Name="ErrorBannerText" Foreground="#F4B9C4" FontSize="13" TextWrapping="Wrap" Margin="0,4,12,0"/></StackPanel>
+                        <StackPanel Grid.Column="1"><TextBlock Foreground="White" x:Name="ErrorBannerTitle" Text="Операция не выполнена" FontSize="14" FontWeight="SemiBold"/><TextBlock x:Name="ErrorBannerText" Foreground="#F4B9C4" FontSize="13" TextWrapping="Wrap" Margin="0,4,12,0"/></StackPanel>
                         <Button Grid.Column="2" Content="×" Style="{StaticResource QuietButton}" Padding="0" FontSize="20" Click="DismissErrorButton_Click" AutomationProperties.Name="Скрыть сообщение об ошибке"/>
                     </Grid>
                 </Border>
@@ -49,61 +51,85 @@
                     <StackPanel x:Name="DashboardLayoutGrid" Margin="28,24,28,20" MaxWidth="1480">
                         <Grid x:Name="DashboardHeadingGrid" Height="68" Margin="0,0,0,16">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <TextBlock x:Name="GreetingText" Text="Лови момент." FontSize="44" FontWeight="Bold" VerticalAlignment="Center"/>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock x:Name="GreetingText" Text="Монтажный стол" FontFamily="{StaticResource DisplayFace}" FontSize="44" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <Border Grid.Column="1" VerticalAlignment="Center" CornerRadius="14" Padding="12,5" Background="#272232"><StackPanel Orientation="Horizontal">
                                 <Ellipse x:Name="CaptureStateDot" Width="9" Height="9" Fill="{StaticResource SubtleBrush}" Margin="0,0,10,0"/>
                                 <TextBlock x:Name="CaptureStateText" Text="Буфер выключен" Foreground="{StaticResource MutedBrush}" FontSize="16" VerticalAlignment="Center"/>
-                            </StackPanel>
+                            </StackPanel></Border>
                         </Grid>
-                        <controls:RoundedClipBorder x:Name="CapturePreviewBorder" Height="410" Background="{StaticResource PreviewBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0" CornerRadius="4">
+                        <Grid x:Name="CaptureDesk">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="2.25*"/><ColumnDefinition Width="22"/><ColumnDefinition Width="*" MinWidth="236"/></Grid.ColumnDefinitions>
+                        <controls:RoundedClipBorder x:Name="CapturePreviewBorder" Background="{StaticResource PreviewBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="3">
                             <Grid>
                                 <Grid.Background><ImageBrush x:Name="CapturePreviewBrush" Stretch="UniformToFill" AlignmentX="Center" AlignmentY="Center"/></Grid.Background>
                                 <Border><Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#000D0F16" Offset="0.6"/><GradientStop Color="#900D0F16" Offset="1"/></LinearGradientBrush></Border.Background></Border>
                                 <StackPanel x:Name="PreviewEmptyPanel" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                    <Path Style="{StaticResource StudioIcon}" Data="{StaticResource CaptureIcon}" Width="48" Height="48" Stroke="{StaticResource AccentHoverBrush}" HorizontalAlignment="Center"/>
-                                    <TextBlock Text="Здесь появится твой первый момент" FontSize="26" FontWeight="SemiBold" Margin="0,16,0,0" HorizontalAlignment="Center"/>
-                                    <TextBlock Text="Запусти игру и сохрани последние 30 секунд" Style="{StaticResource Caption}" FontSize="15" HorizontalAlignment="Center" Margin="0,10,0,0"/>
+                                    <Image Source="{StaticResource LeaderArt}" Width="144" Height="76" Stretch="Uniform"/>
+                                    <TextBlock Foreground="#F5F5F6" Text="Первый клип появится здесь" FontSize="19" FontFamily="{StaticResource DisplayFace}" FontWeight="SemiBold" Margin="0,12,0,0" HorizontalAlignment="Center"/>
+                                    <TextBlock Foreground="#BABBC2" Text="Запусти игру и сохрани последние 30 секунд" Style="{StaticResource Caption}" FontSize="15" HorizontalAlignment="Center" Margin="0,10,0,0"/>
                                 </StackPanel>
-                                <Border x:Name="LatestClipLabel" Visibility="Collapsed" Background="#CC111213" CornerRadius="3" Padding="12,6" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="18" IsHitTestVisible="False">
-                                    <TextBlock Text="ПОСЛЕДНИЙ КЛИП" FontSize="12" FontWeight="SemiBold"/>
+                                <Border x:Name="LatestClipLabel" Visibility="Collapsed" Background="#D516121F" CornerRadius="6" Padding="12,6" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="18" IsHitTestVisible="False">
+                                    <TextBlock Foreground="White" Text="Последний клип" FontSize="13" FontWeight="SemiBold"/>
                                 </Border>
                                 <StackPanel HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="22" MaxWidth="650">
-                                    <TextBlock x:Name="PreviewCaptionText" Text="Нет сохранённых клипов" FontSize="23" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Foreground="White" x:Name="PreviewCaptionText" Text="Нет сохранённых клипов" FontSize="23" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
                                     <TextBlock x:Name="LatestClipMetadataText" FontSize="14" Foreground="#E1E1E5" Margin="0,5,0,0"/>
                                 </StackPanel>
                                 <Button x:Name="OpenLatestClipButton" Style="{StaticResource CircularActionButton}" Width="76" Height="76" Background="#70111213" BorderBrush="White" HorizontalAlignment="Center" VerticalAlignment="Center" Click="OpenClip_Click" IsEnabled="False" AutomationProperties.Name="Воспроизвести последний клип">
                                     <Path Data="M0,0 L20,13 L0,26 Z" Fill="White" Width="20" Height="26" Margin="5,0,0,0"/>
                                     <Button.Visibility><Binding Path="IsEnabled" RelativeSource="{RelativeSource Self}"><Binding.Converter><BooleanToVisibilityConverter/></Binding.Converter></Binding></Button.Visibility>
                                 </Button>
-                                <Border Background="#CC111213" CornerRadius="3" Padding="8,4" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="18">
-                                    <TextBlock x:Name="LatestClipDurationText" Text="—" FontFamily="Consolas" FontSize="15"/>
+                                <Border Visibility="{Binding Visibility, ElementName=LatestClipLabel}" Background="#D516121F" CornerRadius="6" Padding="8,4" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="18">
+                                    <TextBlock Foreground="White" x:Name="LatestClipDurationText" Text="—" FontFamily="Consolas" FontSize="15"/>
                                 </Border>
                             </Grid>
                         </controls:RoundedClipBorder>
 
-                        <Grid x:Name="CaptureActionsGrid" Margin="0,16,0,0" Height="60">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="1.2*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="1.1*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="0.9*"/></Grid.ColumnDefinitions>
+                        <Border Grid.Column="2" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,2,0,1" Padding="0,12,0,10">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Text="Недавние клипы" FontFamily="{StaticResource DisplayFace}" FontWeight="Bold" FontSize="21" Margin="0,0,0,10"/>
+                                <Button DockPanel.Dock="Bottom" Content="Открыть галерею  →" Style="{StaticResource QuietButton}" Click="ClipsNavButton_Click" HorizontalAlignment="Left" Padding="8,4" MinHeight="30"/>
+                                <Grid><ItemsControl x:Name="RecentClipsItemsControl" VerticalAlignment="Top">
+                                    <ItemsControl.ItemTemplate><DataTemplate>
+                                        <Button Tag="{Binding FilePath}" Click="OpenClip_Click" AutomationProperties.Name="{Binding Title}" HorizontalContentAlignment="Stretch"
+                                                BorderThickness="0,0,0,1" BorderBrush="{StaticResource BorderBrush}" Background="Transparent" Padding="0,8">
+                                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <Border Height="50" Background="{StaticResource PreviewBrush}"><Image Source="{Binding Thumbnail}" Stretch="UniformToFill" ClipToBounds="True"/></Border>
+                                                <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center"><TextBlock Text="{Binding Title}" ToolTip="{Binding Title}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" FontSize="14"/>
+                                                <TextBlock Text="{Binding SavedAt}" Foreground="{StaticResource MutedBrush}" TextTrimming="CharacterEllipsis" FontSize="12" Margin="0,4,0,0"/></StackPanel>
+                                            </Grid>
+                                        </Button>
+                                    </DataTemplate></ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock x:Name="RecentClipsEmptyText" Text="Здесь будут три последних клипа." TextWrapping="Wrap" Style="{StaticResource Caption}" VerticalAlignment="Center"/>
+                                </Grid>
+                            </DockPanel>
+                        </Border>
+                        </Grid>
+                        <Grid x:Name="CaptureActionsGrid" Height="84" Margin="0,18,0,0">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="1.1*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Button x:Name="ReplayButton" TabIndex="0" Style="{StaticResource StudioReplayButton}" Click="ReplayButton_Click" AutomationProperties.Name="Сохранить последние 30 секунд">
-                                <Grid x:Name="ReplayActionLayout"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="0"/></Grid.RowDefinitions>
-                                    <TextBlock x:Name="ReplayButtonTitle" Text="Сохранить момент" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
-                                    <Border x:Name="ReplayShortcutChip" Grid.Column="1" Style="{StaticResource SignalShortcut}" Margin="12,0,0,0" BorderBrush="#D8C4FF"><TextBlock x:Name="ReplayHotkeyHint" Text="Shift + Z" Style="{StaticResource SignalShortcutText}"/></Border>
+                                <Grid x:Name="ReplayActionLayout"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="22"/></Grid.RowDefinitions>
+                                    <TextBlock x:Name="ReplayButtonTitle" Foreground="#211333" Text="Сохранить момент" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+
+                                    <Border x:Name="ReplayShortcutChip" Grid.Row="1" HorizontalAlignment="Left" Padding="0" BorderThickness="0" Style="{StaticResource SignalShortcut}" Margin="0" BorderBrush="#D8C4FF"><TextBlock x:Name="ReplayHotkeyHint" Foreground="#3D2559" Text="Shift + Z" Style="{StaticResource SignalShortcutText}"/></Border>
                                 </Grid>
                             </Button>
                             <Button x:Name="RecordButton" TabIndex="1" Grid.Column="2" Style="{StaticResource StudioActionButton}" Click="RecordButton_Click" AutomationProperties.Name="Начать или остановить запись">
-                                <Grid x:Name="RecordActionLayout"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="0"/></Grid.RowDefinitions>
+                                <Grid x:Name="RecordActionLayout"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="22"/></Grid.RowDefinitions>
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center"><Grid Width="22" Margin="0,0,12,0"><Ellipse x:Name="RecordStartGlyph" Width="20" Height="20" Stroke="{StaticResource TextBrush}" StrokeThickness="2"/><Rectangle x:Name="RecordStopGlyph" Width="18" Height="18" RadiusX="2" RadiusY="2" Fill="{StaticResource DangerBrush}" Visibility="Collapsed"/></Grid><TextBlock x:Name="RecordButtonTitle" Text="Начать запись" FontSize="19" FontWeight="SemiBold"/></StackPanel>
-                                    <Border x:Name="RecordShortcutChip" Grid.Column="1" Style="{StaticResource SignalShortcut}" Margin="12,0,0,0"><TextBlock x:Name="RecordHotkeyHint" Text="Shift + R" Style="{StaticResource SignalShortcutText}"/></Border>
+                                    <Border x:Name="RecordShortcutChip" Grid.Row="1" HorizontalAlignment="Left" Padding="0" BorderThickness="0" Style="{StaticResource SignalShortcut}" Margin="0"><TextBlock x:Name="RecordHotkeyHint" Text="Shift + R" Style="{StaticResource SignalShortcutText}"/></Border>
                                 </Grid>
                             </Button>
                             <Button x:Name="MicrophoneButton" TabIndex="2" Grid.Column="4" Style="{StaticResource StudioActionButton}" Click="MicrophoneButton_Click" AutomationProperties.Name="Включить или выключить микрофон">
-                                <Grid x:Name="MicrophoneActionLayout"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="0"/></Grid.RowDefinitions>
+                                <Grid x:Name="MicrophoneActionLayout"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="22"/></Grid.RowDefinitions>
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center"><Path x:Name="MicrophoneIcon" Style="{StaticResource StudioIcon}" Data="{StaticResource MicIcon}" Width="22" Height="27" Stroke="{StaticResource SuccessBrush}" Margin="0,0,10,0"/><TextBlock x:Name="MicrophoneButtonTitle" Text="Микрофон" FontSize="19" FontWeight="SemiBold" VerticalAlignment="Center"/></StackPanel>
                                     <TextBlock x:Name="MicrophoneHotkeyHint" Grid.Row="1" Style="{StaticResource SignalShortcutText}" VerticalAlignment="Center" Margin="0,2,0,0"/>
-                                    <controls:AudioLevelMeter x:Name="MicrophoneLevelMeter" Grid.Column="1" Width="84" Height="22" Margin="10,0,0,0" VerticalAlignment="Center" Focusable="False" IsHitTestVisible="False" AutomationProperties.Name="Уровень микрофона"/>
+                                    <controls:AudioLevelMeter x:Name="MicrophoneLevelMeter" Grid.Column="1" Grid.RowSpan="2" Width="84" Height="22" Margin="10,0,0,0" VerticalAlignment="Center" Focusable="False" IsHitTestVisible="False" AutomationProperties.Name="Уровень микрофона"/>
                                 </Grid>
                             </Button>
                         </Grid>
-                        <Grid x:Name="QuickSettingsGrid" Margin="0,12,0,0" Height="44">
+                        <Grid x:Name="QuickSettingsGrid" Margin="0,12,0,0" Height="48">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Button Style="{StaticResource StudioQuickButton}" Click="VideoNavButton_Click" AutomationProperties.Name="Настроить источник захвата">
                                 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="32"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="16"/></Grid.ColumnDefinitions>
@@ -113,10 +139,10 @@
                                     <Path Style="{StaticResource StudioIcon}" Data="{StaticResource ChevronRightIcon}" Grid.Column="3" Width="12" Height="14"/>
                                 </Grid>
                             </Button>
-                            <Button Grid.Column="2" Style="{StaticResource StudioQuickButton}" Click="AudioSettingsNavButton_Click">
+                            <Button Grid.Column="2" Style="{StaticResource StudioQuickButton}" Click="AudioSettingsNavButton_Click" AutomationProperties.Name="Настроить звук">
                                 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="32"/><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/></Grid.ColumnDefinitions>
                                     <Path Style="{StaticResource StudioIcon}" Data="{StaticResource AudioIcon}" Stroke="{StaticResource TextBrush}"/>
-                                    <TextBlock x:Name="AudioSummaryText" Grid.Column="1" Text="Аудио: системное устройство" FontSize="16" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock x:Name="AudioSummaryText" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" Grid.Column="1" Text="Аудио: системное устройство" FontSize="16" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                     <Path Style="{StaticResource StudioIcon}" Data="{StaticResource ChevronRightIcon}" Grid.Column="2" Width="12" Height="14"/>
                                 </Grid>
                             </Button>
@@ -125,45 +151,28 @@
                             </Button>
                         </Grid>
 
-                        <Grid x:Name="RecentClipsHeader" Margin="0,16,0,12" Height="36"><TextBlock Text="Недавние клипы" FontSize="25" FontWeight="SemiBold"/><Button Content="Все клипы ↗" Style="{StaticResource QuietButton}" FontSize="14" HorizontalAlignment="Right" MinHeight="28" Padding="10,0" Click="ClipsNavButton_Click"/></Grid>
-                        <Grid>
-                            <ItemsControl x:Name="RecentClipsItemsControl">
-                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="3"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemContainerStyle><Style TargetType="ContentPresenter"><Setter Property="Margin" Value="0,0,16,0"/></Style></ItemsControl.ItemContainerStyle>
-                                <ItemsControl.ItemTemplate><DataTemplate>
-                                    <StackPanel>
-                                        <Button Height="122" Padding="0" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Background="{StaticResource InputBrush}" Tag="{Binding FilePath}" Click="OpenClip_Click" AutomationProperties.Name="{Binding Title}" ToolTip="Открыть клип">
-                                            <Grid><Grid.Background><ImageBrush ImageSource="{Binding Thumbnail}" Stretch="UniformToFill" AlignmentX="Center" AlignmentY="Center"/></Grid.Background><Border Background="#D0111213" CornerRadius="6" Padding="8,3" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="10"><TextBlock Text="{Binding Duration}" FontSize="13"/></Border></Grid>
-                                        </Button>
-                                        <TextBlock Text="{Binding Title}" ToolTip="{Binding Title}" FontSize="14" FontWeight="Normal" TextTrimming="CharacterEllipsis" Margin="0,8,0,0"/>
-                                        <TextBlock Text="{Binding SavedAt}" Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,4,0,0"/>
-                                    </StackPanel>
-                                </DataTemplate></ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                            <TextBlock x:Name="RecentClipsEmptyText" Text="Клипы появятся здесь после первого сохранения" Style="{StaticResource Caption}" FontSize="16" HorizontalAlignment="Center" Margin="0,30"/>
-                        </Grid>
                     </StackPanel>
                 </ScrollViewer>
 
                     <!-- Clips page -->
                     <ScrollViewer x:Name="AudioPage" Grid.Row="2" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" HorizontalContentAlignment="Stretch">
                         <StackPanel Margin="28,24,12,24" MaxWidth="1440" HorizontalAlignment="Stretch">
-                            <TextBlock Text="Мои клипы" Style="{StaticResource PageHeading}" />
-                            <TextBlock Text="Открой момент одним нажатием. Все видео хранятся на твоём компьютере." Foreground="{StaticResource MutedBrush}" FontSize="14" Margin="0,5,0,22" />
+                            <TextBlock Text="Киноархив" Style="{StaticResource PageHeading}" />
+                            <TextBlock x:Name="GalleryCountText" Foreground="{StaticResource MutedBrush}" FontSize="14" Margin="0,6,0,18" />
                             <TextBlock Text="Поиск по игре или названию" FontSize="13" Foreground="{StaticResource MutedBrush}" Margin="0,0,0,8" />
                             <DockPanel Margin="0,0,0,20"><Button Content="Открыть папку" DockPanel.Dock="Right" Click="OpenClipsFolder_Click" Margin="12,0,0,0" /><Button Content="Обновить" DockPanel.Dock="Right" Click="RefreshClips_Click" Margin="12,0,0,0" /><TextBox x:Name="ClipSearchTextBox" TextChanged="ClipSearch_TextChanged" ToolTip="Поиск по имени игры или клипа" AutomationProperties.Name="Поиск клипов" /></DockPanel>
-                            <TextBlock x:Name="GalleryCountText" Text="Нет сохранённых клипов" Foreground="{StaticResource MutedBrush}" FontSize="14" Margin="0,0,0,14" />
                             <ItemsControl x:Name="GalleryItemsControl">
                                 <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="3"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate><DataTemplate>
-                                    <Border Padding="0" Margin="0,0,16,24">
+                                    <Border Padding="0,0,0,12" Margin="0,0,16,16" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
                                         <StackPanel>
                                             <Button Tag="{Binding FilePath}" Click="OpenClip_Click" Padding="0" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Height="180" ToolTip="Воспроизвести клип" AutomationProperties.Name="{Binding Title}">
-                                                <Grid><Grid.Background><ImageBrush ImageSource="{Binding Thumbnail}" Stretch="UniformToFill" AlignmentX="Center" AlignmentY="Center"/></Grid.Background><Border Background="#DC111213" Padding="7,4" CornerRadius="5" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="8"><TextBlock Text="{Binding Duration}" FontSize="12" /></Border></Grid>
+                                                <Grid><Grid.Background><ImageBrush ImageSource="{Binding Thumbnail}" Stretch="UniformToFill" AlignmentX="Center" AlignmentY="Center"/></Grid.Background><Border Background="#DC111213" Padding="7,4" CornerRadius="5" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="8"><TextBlock Foreground="White" Text="{Binding Duration}" FontSize="12" /></Border></Grid>
                                             </Button>
-                                            <TextBlock Text="{Binding Title}" ToolTip="{Binding Title}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,12,0,6" />
-                                            <TextBlock Text="{Binding SavedAt}" FontSize="12" Foreground="{StaticResource MutedBrush}" />
-                                            <Button Content="Показать в папке" Tag="{Binding FilePath}" Click="RevealClip_Click" Margin="0,12,0,0" MinHeight="32" Padding="10,5" FontSize="12" />
+                                            <DockPanel Margin="5,9,2,3">
+                                                <Button DockPanel.Dock="Right" Tag="{Binding FilePath}" Click="RevealClip_Click" ToolTip="Показать в папке" AutomationProperties.Name="Показать в папке" Width="36" MinHeight="34" Padding="8"><Path Style="{StaticResource StudioIcon}" Data="{StaticResource FolderIcon}" Width="16" Height="16"/></Button>
+                                                <StackPanel Margin="0,0,8,0"><TextBlock Text="{Binding Title}" ToolTip="{Binding Title}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/><TextBlock Text="{Binding SavedAt}" FontSize="12" Margin="0,4,0,0" Foreground="{StaticResource MutedBrush}"/></StackPanel>
+                                            </DockPanel>
                                         </StackPanel>
                                     </Border>
                                 </DataTemplate></ItemsControl.ItemTemplate>
@@ -171,9 +180,9 @@
                             <Border x:Name="GalleryEmptyPanel" Style="{StaticResource SettingsPanel}" Padding="28">
                                 <StackPanel HorizontalAlignment="Center" Margin="0,50">
                                     <Path Style="{StaticResource StudioIcon}" Data="{StaticResource ClipsIcon}" Width="42" Height="42" Stroke="{StaticResource AccentHoverBrush}" HorizontalAlignment="Center" />
-                                    <TextBlock Text="Здесь будут твои моменты" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,14,0,0" />
-                                    <TextBlock Text="Сохрани replay или начни запись на главной странице." Foreground="{StaticResource MutedBrush}" FontSize="14" HorizontalAlignment="Center" Margin="0,6,0,18" />
-                                    <Button Content="Открыть папку с клипами" Background="{StaticResource AccentBrush}" Click="OpenClipsFolder_Click" />
+                                    <TextBlock x:Name="GalleryEmptyTitle" FontFamily="{StaticResource DisplayFace}" Text="Пока нет клипов" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,14,0,0" />
+                                    <TextBlock x:Name="GalleryEmptyHint" Text="Сохрани момент на экране захвата." Foreground="{StaticResource MutedBrush}" FontSize="14" HorizontalAlignment="Center" Margin="0,6,0,18" />
+                                    <Button Content="Открыть папку с клипами" Foreground="White" Background="{StaticResource AccentBrush}" Click="OpenClipsFolder_Click" />
                                 </StackPanel>
                             </Border>
                         </StackPanel>
@@ -182,12 +191,12 @@
 
 
                 <Grid x:Name="SettingsShell" Grid.Row="2" Visibility="Collapsed" MaxWidth="1180" Margin="32,20,32,24">
-                    <Grid.RowDefinitions><RowDefinition Height="76"/><RowDefinition Height="54"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                    <Grid><StackPanel><TextBlock Text="Настройки" Style="{StaticResource PageHeading}"/><TextBlock Text="Всё для твоей записи — в одном месте." Style="{StaticResource Caption}" Margin="0,6,0,0"/></StackPanel><Button x:Name="SaveAllSettingsButton" Content="Сохранить настройки" Style="{StaticResource PrimaryButton}" MinHeight="42" Padding="20,8" Click="SaveSettingsButton_Click" HorizontalAlignment="Right" VerticalAlignment="Top" ToolTip="Применить настройки видео, звука и горячих клавиш"/></Grid>
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
-                        <Button x:Name="VideoNavButton" Content="Видео и файлы" Style="{StaticResource SettingsTab}" Click="VideoNavButton_Click"/>
-                        <Button x:Name="AudioSettingsNavButton" Content="Аудио" Style="{StaticResource SettingsTab}" Click="AudioSettingsNavButton_Click" Margin="8,0"/>
-                        <Button x:Name="ControlsNavButton" Content="Клавиатура и геймпад" Style="{StaticResource SettingsTab}" Click="ControlsNavButton_Click"/>
+                    <Grid.RowDefinitions><RowDefinition Height="56"/><RowDefinition Height="58"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <Grid><TextBlock Text="Настройки" Style="{StaticResource PageHeading}"/><Button x:Name="SaveAllSettingsButton" Content="Сохранить настройки" Style="{StaticResource PrimaryButton}" MinHeight="40" Padding="20,8" Click="SaveSettingsButton_Click" HorizontalAlignment="Right" VerticalAlignment="Top"/></Grid>
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,2,0,8">
+                        <Button x:Name="VideoNavButton" Style="{StaticResource SettingsTab}" HorizontalContentAlignment="Left" Padding="12,10" Margin="0,0,0,6" Click="VideoNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource NavGlyph}" Data="{StaticResource CaptureTabGlyph}"/><TextBlock Text="Видео и файлы" FontSize="14"/></StackPanel></Button>
+                        <Button x:Name="AudioSettingsNavButton" Style="{StaticResource SettingsTab}" HorizontalContentAlignment="Left" Padding="12,10" Margin="0,0,0,6" Click="AudioSettingsNavButton_Click" AutomationProperties.Name="Настроить звук"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource StudioIcon}" Data="{StaticResource AudioIcon}" Width="16" Height="16" Margin="0,0,8,0"/><TextBlock Text="Аудио" FontSize="14"/></StackPanel></Button>
+                        <Button x:Name="ControlsNavButton" Style="{StaticResource SettingsTab}" HorizontalContentAlignment="Left" Padding="12,10" Margin="0,0,0,6" Click="ControlsNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource StudioIcon}" Data="{StaticResource KeyboardIcon}" Width="16" Height="16" Margin="0,0,8,0"/><TextBlock Text="Клавиатура и геймпад" FontSize="14"/></StackPanel></Button>
                     </StackPanel>
                     <ScrollViewer x:Name="VideoPage" Grid.Row="2" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <StackPanel Margin="0,8,12,16">
@@ -262,13 +271,13 @@
                                 <Grid Margin="0,0,0,12"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions><TextBlock Text="Открыть галерею" FontSize="15" VerticalAlignment="Center"/><TextBox x:Name="GalleryHotkeyTextBox" Grid.Column="1" Style="{StaticResource HotkeyBox}" MinHeight="44" PreviewKeyDown="HotkeyTextBox_PreviewKeyDown" AutomationProperties.Name="Открыть галерею"/></Grid>
                                 <CheckBox x:Name="GameOnlyHotkeysCheckBox" Style="{StaticResource ToggleCheckBox}" Content="Клавиатурные хоткеи только в активной игре" IsChecked="True" Margin="0,8,0,0"/>
                             </StackPanel></Border>
-                            <TextBlock Text="CLIPALKA v0.9.3 RC4 · Все клипы хранятся на твоём компьютере" Style="{StaticResource Caption}" FontSize="13" Margin="4,8"/>
+                            <TextBlock Text="CLIPALKA v0.9.3 · Все клипы хранятся на твоём компьютере" Style="{StaticResource Caption}" FontSize="13" Margin="4,8"/>
                         </StackPanel>
                     </ScrollViewer>
                 </Grid>
             </Grid>
 
-            <Border Grid.Row="2" Background="#80171921" BorderBrush="#353541" BorderThickness="0,1,0,0" Padding="20,0">
+            <Border Grid.Column="1" Grid.Row="2" Background="#17151E" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="20,0">
                 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center"><Ellipse x:Name="ReplayStatusDot" Width="6" Height="6" Fill="{StaticResource SubtleBrush}" Margin="0,0,7,0"/><TextBlock x:Name="ReplayStatusText" Text="Replay выключен" FontSize="11" Foreground="{StaticResource MutedBrush}" Margin="0,0,16,0"/></StackPanel>
                     <TextBlock x:Name="CaptureDescriptionText" Grid.Column="1" Text="Replay-буфер выключен" Foreground="{StaticResource MutedBrush}" FontSize="11" VerticalAlignment="Center" Margin="0,0,18,0"/>
